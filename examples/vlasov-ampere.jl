@@ -67,7 +67,7 @@ function main()
     d = 2
 
     # Method: meth=0 sav, meth=1 Lapenta
-    meth = 0
+    meth = 1
 
     while abs(t) < abs(tmax)
         iter += 1
