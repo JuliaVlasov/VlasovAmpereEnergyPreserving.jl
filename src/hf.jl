@@ -1,3 +1,49 @@
+#=
+function [ f, Ex, Ey ] = hf(dt,dvx,dvy,Nvx,Nvy,Nx,Vx,vy,kx,k,f,Ex,Ey)
+
+%solve the subsystem 
+%df/dt + vx df/dvx = 0 
+%dEx/dt = -Jx 
+%dEy/dt = -Jy
+%dB/dt=drx/dt=dry/dt=0
+
+
+rhoh=squeeze(sum(sum(f))*dvx*dvy)';
+for j=1:Nvy
+    fs=squeeze(f(:,j,:)); %fn
+    fnsvy(:,j,:)=vy(j)*fs./Vx;
+    fs=real(ifft((exp(-sqrt(-1)*Vx'.*kx*dt)).*fft(fs')))'; %f(n+1)=exp(-ikvx dt)fn
+    f(:,j,:)=fs; %f(n+1)
+    fnp1vy(:,j,:)=vy(j)*fs./Vx;
+end
+
+rhohvy=squeeze(sum(sum(fnsvy))*dvx*dvy)';
+rhon=squeeze(sum(sum(f))*dvx*dvy)';
+rhonvy=squeeze(sum(sum(fnp1vy))*dvx*dvy)';
+
+
+%compute the current exactly in time by hand to get Ex and Ey
+
+k_mod=k;
+k_mod(1)=1;
+
+rhs=(1./(sqrt(-1)*k_mod)).*fft(rhon-rhoh);
+Ef=fft(Ex);
+
+Ef=Ef+rhs;
+Ef(1,1)=0;
+Ex=real(ifft(Ef));
+
+
+rhs=(1./(sqrt(-1)*k_mod)).*(fft(rhonvy-rhohvy));
+Ef=fft(Ey);
+Ef=Ef+rhs;
+Ef(1,1)=0;
+Ey=real(ifft(Ef));
+
+end
+=#
+
 function hf(dt, dvx, dvy, Nvx, Nvy, Nx, Vx, vy, kx, k, f, Ex, Ey)
     # solve the subsystem
     # df/dt + vx df/dvx = 0
@@ -6,30 +52,30 @@ function hf(dt, dvx, dvy, Nvx, Nvy, Nx, Vx, vy, kx, k, f, Ex, Ey)
     # dB/dt=drx/dt=dry/dt=0
 
     # Calculate initial charge densities
-    rhoh = dropdims(sum(sum(f, dims=1), dims=2) * dvx * dvy
-    
+    rhoh = dropdims(sum(sum(f, dims = 1), dims = 2)) * dvx * dvy
+
     # Initialize arrays
     fnsvy = similar(f)
     fnp1vy = similar(f)
-    
+
     # Loop over vy dimension
-    for j in 1:Nvy
-        fs = dropdims(f[:,j,:], dims=2)  # Extract 2D slice
-        fnsvy[:,j,:] = vy[j] * fs ./ Vx
-        
+    for j = 1:Nvy
+        fs = dropdims(f[:, j, :], dims = 2)  # Extract 2D slice
+        fnsvy[:, j, :] = vy[j] * fs ./ Vx
+
         # Fourier transform and apply phase shift
         fs_hat = fft(fs', 1)  # FFT along x dimension
         fs_shifted = exp.(-im * Vx' .* kx * dt) .* fs_hat
         fs = real(ifft(fs_shifted, 1))'  # Inverse FFT
-        
-        f[:,j,:] = fs  # Update distribution function
-        fnp1vy[:,j,:] = vy[j] * fs ./ Vx
+
+        f[:, j, :] = fs  # Update distribution function
+        fnp1vy[:, j, :] = vy[j] * fs ./ Vx
     end
 
     # Calculate updated charge densities
-    rhohvy = dropdims(sum(sum(fnsvy, dims=1), dims=2) * dvx * dvy)
-    rhon = dropdims(sum(sum(f, dims=1), dims=2) * dvx * dvy)
-    rhonvy = dropdims(sum(sum(fnp1vy, dims=1), dims=2) * dvx * dvy)
+    rhohvy = dropdims(sum(sum(fnsvy, dims = 1), dims = 2) * dvx * dvy)
+    rhon = dropdims(sum(sum(f, dims = 1), dims = 2) * dvx * dvy)
+    rhonvy = dropdims(sum(sum(fnp1vy, dims = 1), dims = 2) * dvx * dvy)
 
     # Compute current and update electric fields
     k_mod = copy(k)
