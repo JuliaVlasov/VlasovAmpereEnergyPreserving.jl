@@ -44,13 +44,18 @@ Ey=real(ifft(Ef));
 end
 =#
 
-function hf(dt, dvx, dvy, Nvx, Nvy, Nx, Vx, vy, kx, k, f, Ex, Ey)
-    # solve the subsystem
-    # df/dt + vx df/dvx = 0
-    # dEx/dt = -Jx
-    # dEy/dt = -Jy
-    # dB/dt=drx/dt=dry/dt=0
+export hf
 
+"""
+solve the subsystem
+
+df/dt + vx df/dvx = 0
+dEx/dt = -Jx
+dEy/dt = -Jy
+dB/dt=drx/dt=dry/dt=0
+
+"""
+function hf(dt, dvx, dvy, Nvx, Nvy, Nx, Vx, vy, kx, k, f, Ex, Ey)
     # Calculate initial charge densities
     rhoh = dropdims(sum(sum(f, dims = 1), dims = 2)) * dvx * dvy
 

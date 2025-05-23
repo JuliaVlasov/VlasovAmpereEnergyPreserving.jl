@@ -1,6 +1,7 @@
 using FFTW
 using LinearAlgebra
 using VlasovAmpereEnergyPreserving
+using Plots
 
 function main()
     # Grid parameters
@@ -66,7 +67,7 @@ function main()
     d = 2
 
     # Method: meth=0 sav, meth=1 Lapenta
-    meth = 1
+    meth = 0
 
     while abs(t) < abs(tmax)
         iter += 1
@@ -112,4 +113,6 @@ function main()
     return (tabt, modes, enelec, eelec, r_history, mom, ekin, etot, diff_sav, diff_poisson)
 end
 
-@time main()
+@time tabt, modes, enelec, eelec, r_history, mom, ekin, etot, diff_sav, diff_poisson = main()
+
+plot(tabt, ekin)

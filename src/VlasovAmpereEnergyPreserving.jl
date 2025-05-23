@@ -1,5 +1,6 @@
 module VlasovAmpereEnergyPreserving
 
+include("hf.jl")
 include("hf_lapenta.jl")
 include("he_lapenta.jl")
 include("poisson.jl")
