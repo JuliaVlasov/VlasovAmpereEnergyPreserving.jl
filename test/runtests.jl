@@ -1,6 +1,6 @@
-using EnergyPreserving
+using VlasovAmpereEnergyPreserving
 using Test
 
-@testset "EnergyPreserving.jl" begin
+@testset "VlasovAmepereEnergyPreserving.jl" begin
     # Write your tests here.
 end
