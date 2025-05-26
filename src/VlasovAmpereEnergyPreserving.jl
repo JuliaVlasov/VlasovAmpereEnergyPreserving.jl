@@ -6,5 +6,6 @@ include("he_lapenta.jl")
 include("poisson.jl")
 include("init_f.jl")
 include("semilagrangian.jl")
+include("updateg.jl")
 
 end

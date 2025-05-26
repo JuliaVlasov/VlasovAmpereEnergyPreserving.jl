@@ -20,21 +20,21 @@ function [ gx,gy ] = updateg(rx,Ex,ry,Ey,x,Nx )
 end
 =#
 
-function updateg(rx, Ex, ry, Ey, x, Nx)
+function updateg(rx, Ex, ry, Ey, x, nx)
 
-    xmax=x[2]+x[end];
-    k=2*pi/xmax;
+    xmax=x[2]+x[end]
+    k=2pi/xmax
 
-    if (abs(rx)>1.e-12)
-        gx=Ex/rx;
+    if abs(rx)>1.e-12
+        gx=Ex/rx
     else
-        gx=zeros(1, Nx);
+        gx=zeros(nx)
     end
 
-    if (abs(ry)>1.e-12)
-        gy=Ey/ry;
+    if abs(ry)>1.e-12
+        gy=Ey/ry
     else
-        gy=zeros(1, Nx)
+        gy=zeros(nx)
     end
 
     return gx, gy
