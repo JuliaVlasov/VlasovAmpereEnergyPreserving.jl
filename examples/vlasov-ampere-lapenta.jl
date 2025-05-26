@@ -150,9 +150,9 @@ dt = 0.2
 @time tabt, enelec, etot, diff_poisson, fn = run(nx, nv, tmax, dt, α)
 
 plot(tabt, enelec, yaxis=:log)
-# line, ω, = fit_complex_frequency(tabt, enelec)
-# plot!(tabt, line, yaxis = :log)
-# title!("ω = $(imag(ω))")
+line, ω, = fit_complex_frequency(tabt, enelec)
+plot!(tabt, line, yaxis = :log)
+title!("ω = $(imag(ω))")
 
 
 # -
