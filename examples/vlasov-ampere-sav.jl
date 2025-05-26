@@ -7,7 +7,7 @@ using FFTW
 using LinearAlgebra
 using Plots
 using ProgressMeter
-import VlasovAmpereEnergyPreserving: poisson, semilag
+import VlasovAmpereEnergyPreserving: poisson, semilag_d2 
 using DispersionRelations
 
 # +
@@ -20,13 +20,17 @@ function hf!( f::Matrix{Float64}, E::Vector{Float64}, dt::Float64, dv::Float64, 
     ft .*= exp.(-1im * v .* kx' * dt )
     f .= real(ifft(ft, 2))
     rhon = vec(sum(f, dims=1)) .* dv
-    k_mod = copy(kx)
-    k_mod[1] = 1  
-    
-    rhs = fft(rhon .- rhoh) ./ (1im * k_mod)
     Ef = fft(E)
-    Ef .+= rhs 
-    Ef[1,1] = 0 
+    rhs = fft(rhon .- rhoh) 
+
+    nx = length(kx)
+
+    for i in 2:nx
+        Ef[i] = Ef[i] + rhs[i] / (1im * kx[i])
+    end
+
+    Ef[1] = 0 
+
     E .= real(ifft(Ef))
 end
 
@@ -44,8 +48,8 @@ function HE!(f, r, v, g, nv, kv, dv, nx, dx, dt, d)
     u = zeros(nv)
     u1 = zeros(nv)
     for i=eachindex(enew)
-        ft = f[:,i]
-        u1 = semilag(ft, nv, enew[i], dt, dv, d)
+        u .= f[:,i]
+        u1 .= semilag_d2(u, nv, enew[i], dt, dv)
         f[:,i] .= u1
     end
         
