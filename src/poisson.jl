@@ -20,7 +20,12 @@ function poisson(rho, x, k)
     rhotmp = copy(rho)  # Make a copy to avoid modifying input
 
     # Perform FFT-based Poisson solve
-    Ef = fft(rhotmp) ./ (im * k)  # im is Julia's imaginary unit
+    Ef = fft(rhotmp) 
+
+    for i in 2:Nx
+        Ef[i] = Ef[i] / (im * k[i])  # im is Julia's imaginary unit
+    end
+
     Ef[1] = 0  # Set DC component to zero
 
     # Return real part of inverse FFT

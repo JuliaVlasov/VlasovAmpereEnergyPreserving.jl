@@ -20,13 +20,13 @@ function hf!( f::Matrix{Float64}, E::Vector{Float64}, dt::Float64, dv::Float64, 
     ft .*= exp.(-1im * v .* kx' * dt )
     f .= real(ifft(ft, 2))
     rhon = vec(sum(f, dims=1)) .* dv
-    k_mod = kx
+    k_mod = copy(kx)
     k_mod[1] = 1  
     
     rhs = fft(rhon .- rhoh) ./ (1im * k_mod)
     Ef = fft(E)
     Ef .+= rhs 
-    Ef[1] = 0 
+    Ef[1,1] = 0 
     E .= real(ifft(Ef))
 end
 
@@ -41,14 +41,15 @@ function HE!(f, r, v, g, nv, kv, dv, nx, dx, dt, d)
     
     enew = 0.5 * (rnp1+r) * g 
     
+    u = zeros(nv)
+    u1 = zeros(nv)
     for i=eachindex(enew)
         ft = f[:,i]
         u1 = semilag(ft, nv, enew[i], dt, dv, d)
         f[:,i] .= u1
     end
         
-    r = rnp1
-    return r
+    return rnp1
     
 end
 
@@ -81,7 +82,7 @@ function run(nx, nv, tmax, dt, α)
 
 
     mass_hot = sum(feq) * dv
-    feq = feq / mass_hot[1]
+    feq = feq / mass_hot
     fn = feq .* (1 .+ α * cos.(kk * x'))
     rho = vec(sum(fn, dims = 1) * dv .- 1)
     E = poisson(rho, x, kx)
@@ -131,17 +132,17 @@ function run(nx, nv, tmax, dt, α)
 
     end
 
-    tabt, enelec
+    tabt, enelec, etot, diff_poisson, fn
 
 end
 
 # +
-nx = 129
-nv = 63
+nx = 63
+nv = 129
 tmax = 100
-dt = 0.1
+dt = 0.2
 α = 0.001 
-@time tabt, enelec = run(nx, nv, tmax, dt, α)
+@time tabt, enelec, etot, diff_poisson, fn = run(nx, nv, tmax, dt, α)
 
 plot(tabt, enelec, yaxis=:log)
 line, ω, = fit_complex_frequency(tabt, enelec, use_peaks = 1:7)

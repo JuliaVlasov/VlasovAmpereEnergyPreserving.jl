@@ -118,7 +118,7 @@ end
 #     ifelse(j == N, 1, j)
 # end
 
-@inline function semilag(f::Vector{Float64}, Nv::Int, E::Float64, 
+@inline function semilag_opt(f::Vector{Float64}, Nv::Int, E::Float64, 
                         dt::Float64, dv::Float64, d::Int)::Vector{Float64}
     # Initialize output and working arrays
     f_new = similar(f)
