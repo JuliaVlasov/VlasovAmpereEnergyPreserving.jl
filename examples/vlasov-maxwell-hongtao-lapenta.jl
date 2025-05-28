@@ -1,7 +1,7 @@
 using FFTW
 using LinearAlgebra
 using Printf
-import VlasovAmpereEnergyPreserving: updateg, poisson
+import VlasovAmpereEnergyPreserving: updateg, poisson, semilag_d2
 
 # Hongtao-Lapenta splitting
 
@@ -59,7 +59,7 @@ B = α * cos.(kinit .* x)
 
 f = copy(f0)
 
-rho0 = sum(f) * dvx * dvy
+rho0 = copy(rho)
 Ex0 = copy(Ex)
 B0 = copy(B)
 Ey0 = copy(Ey)
@@ -99,6 +99,117 @@ function hf_lapenta2d!(f, dt, nvy, vx, kx)
 end
 
 
+"""
+solve the subsystem 
+
+math```
+    df/dt + Ex df/dvx + Ey df/dvy = 0
+    dEx/dt=-Jx
+    dEy/dt=-Jy
+    dB/dt=0
+```
+
+"""
+function HE_lapenta2d!(f, Ex, Ey, vx, vy, nvx, nvy, dvx, dvy, nx, dx, dt)
+          
+    Jx = zeros(nx)
+    Jy = zeros(nx)
+    rho = zeros(nx)
+    for i in axes(f,3), j in axes(f,2), k in axes(f,1)
+        Jx[i]  += vx[j] * f[j,k,i]
+        Jy[i]  += vy[k] * f[j,k,i]
+        rho[i] += f[j,k,i]
+    end
+
+    Jx .*= dvx * dvy 
+    Jy .*= dvx * dvy
+    rho .*= dvx * dvy
+
+    dt2_rho4 = (dt^2) .* rho ./ 4
+    dt2_rho2 = dt2_rho4 .* 2  
+
+    Exnew = (1 ./ (1 .+ dt2_rho4)) .* Ex .- (dt ./(2 .+ dt2_rho2)) .* Jx
+    Eynew = (1 ./ (1 .+ dt2_rho4)) .* Ey .- (dt ./(2 .+ dt2_rho2)) .* Jy
+
+    for j=axes(f,2), i=eachindex(Exnew)
+        ft = f[:,j,i]
+        u1 = semilag_d2(ft, nvx, Exnew[i], dt, dvx)
+        f[:,j,i] .= u1
+    end
+
+    for k=axes(f,1), i = eachindex(Eynew)
+        ft = f[k,:,i]
+        u1 = semilag_d2(ft, nvy, Eynew[i], dt, dvy)
+        f[k,:,i] .= u1
+    end
+
+    Ex .= 2 .* Exnew .- Ex
+    Ey .= 2 .* Eynew .- Ey
+
+
+end
+
+
+"""
+solve the subsystem 
+
+    df/dt+B Jv.df/dv=0 (with semi-Lagrangian + exact splitting) 
+    dEy/dt = -dB/dx
+    dB/dt  = -dEy/dx 
+    dEx/dt = 0
+
+"""
+function HB_lapenta2d!(f,Ex,Ey,B,vx,vy,kx,kvx,kvy,dt)
+  
+    Eyf = fft(Ey)
+    Bf = fft(B)
+    Eynp1f = similar(Eyf)
+    Bnp1f = similar(Bf)
+
+    for i=eachindex(kx)
+        AA=[1  0.5dt * 1im * kx[i];
+            0.5dt * 1im * kx[i]  1]
+
+        Un = [Eyf[i] - 0.5dt * 1im * kx[i] * Bf[i]
+              Bf[i]  - 0.5dt * 1im * kx[i] * Eyf[i]]
+        U = AA \ Un
+        Eynp1f[i]=U[1]
+        Bnp1f[i]=U[2]
+    end
+    
+    Eynp1=real(ifft(Eynp1f))
+    Bnp1=real(ifft(Bnp1f))
+    
+    Bdemi = 0.5 * ( Bnp1 + B)
+
+    fn = fft(f, 1)  
+    for l in axes(fn, 3), j in axes(fn, 2), i in axes(fn, 1)
+        fn[i,j,l] = exp(-1im * kvx[i]*vy[j]*tan(Bdemi[l]*dt/2)) * fn[i,j,l]
+    end
+    fn = ifft(fn, 1)
+
+    fn = fft(fn, 2) 
+    for l in axes(fn, 3), j in axes(fn, 2), i in axes(fn, 1)
+        fn[i,j,l] = exp( 1im * kvy[j]*vx[i]*sin(Bdemi[l]*dt)) * fn[i,j,l]
+    end
+    fn = ifft(fn, 2)
+
+    fn = fft(fn, 1)
+    for l in axes(fn, 3), j in axes(fn, 2), i in axes(fn, 1)
+        fn[i,j,l] = exp(- 1im * kvx[i]*vy[j]*tan(Bdemi[l]*dt/2)) * fn[i,j,l]
+    end
+    fn = ifft(fn, 1)
+    
+    Ey .= Eynp1
+    B .= Bnp1
+    f .= real(fn)
+
+end
+
+
+
+
+
 while abs(t - tmax) > 1e-10
     global iter
     iter += 1
@@ -111,30 +222,8 @@ while abs(t - tmax) > 1e-10
     end
 
     hf_lapenta2d!(f, dt, nvy, vx, kx)
-
-#=
-    f, Ex, Ey = HE_lapenta2d(f, vx, vy, Ex, Ey, nvx, nvy, dvx, dvy, nx, dx, dt, d)
-    f, Ex, Ey, B = HB_lapenta2d(
-        f,
-        Ex,
-        Ey,
-        B,
-        vx,
-        vy,
-        kk,
-        kkvx,
-        kkvy,
-        nvx,
-        nvy,
-        dvx,
-        dvy,
-        nx,
-        dt,
-        dx,
-        d,
-        meth,
-    )
-=#
+    HE_lapenta2d!(f, Ex, Ey, vx, vy, nvx, nvy, dvx, dvy, nx, dx, dt)
+    HB_lapenta2d!(f, Ex, Ey, B, vx, vy, kx, kvx, kvy, dt)
 
     ## Diagnostics
     #diag_tmp = compute_diag(f, B, Ey, Ex, gy, vx, vy, ry, rx, nx, nvx, nvy, dx, t)

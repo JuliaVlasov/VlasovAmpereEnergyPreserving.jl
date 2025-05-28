@@ -31,15 +31,12 @@ function HE_lapenta!(
     # Pre-allocate outputs
     fn1 = similar(f)
 
-    # Calculate current and charge density (using views to avoid allocations)
     J = vec(sum(v .* f, dims = 1)) .* dv
     rho = vec(sum(f, dims = 1)) .* dv
 
-    # Compute intermediate terms (using fused broadcasting)
     dt2_rho4 = (dt^2) .* rho ./ 4
-    dt2_rho2 = dt2_rho4 .* 2  # Same as dt^2*rho/2
+    dt2_rho2 = dt2_rho4 .* 2  
 
-    # Update electric field (single fused operation)
     Enew = E ./ (1 .+ dt2_rho4) .- (dt * J) ./ (2 .+ dt2_rho2)
 
     # Update current and electric field
