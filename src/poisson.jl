@@ -4,15 +4,15 @@ export poisson
 
 function poisson(rho, x, kx)
     nx = length(rho)
-    rhotmp = copy(rho) 
+    rhotmp = copy(rho)
 
-    Ef = fft(rhotmp) 
+    Ef = fft(rhotmp)
 
-    for i in 2:nx
+    for i = 2:nx
         Ef[i] = Ef[i] / (im * kx[i])
     end
 
-    Ef[1] = 0  
+    Ef[1] = 0
 
     return real(ifft(Ef))
 end

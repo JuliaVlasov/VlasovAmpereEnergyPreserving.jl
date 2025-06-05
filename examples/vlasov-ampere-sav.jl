@@ -7,29 +7,36 @@ using FFTW
 using LinearAlgebra
 using Plots
 using ProgressMeter
-import VlasovAmpereEnergyPreserving: poisson, semilag_d2 
+import VlasovAmpereEnergyPreserving: poisson, semilag_d2
 using DispersionRelations
 
 # +
 import VlasovAmpereEnergyPreserving.hf
 
-function hf!( f::Matrix{Float64}, E::Vector{Float64}, dt::Float64, dv::Float64, v::Vector{Float64}, kx::Vector{Float64})
+function hf!(
+    f::Matrix{Float64},
+    E::Vector{Float64},
+    dt::Float64,
+    dv::Float64,
+    v::Vector{Float64},
+    kx::Vector{Float64},
+)
 
-    rhoh = vec(sum(f, dims=1)) .* dv  
+    rhoh = vec(sum(f, dims = 1)) .* dv
     ft = fft(f, 2)
-    ft .*= exp.(-1im * v .* kx' * dt )
+    ft .*= exp.(-1im * v .* kx' * dt)
     f .= real(ifft(ft, 2))
-    rhon = vec(sum(f, dims=1)) .* dv
+    rhon = vec(sum(f, dims = 1)) .* dv
     Ef = fft(E)
-    rhs = fft(rhon .- rhoh) 
+    rhs = fft(rhon .- rhoh)
 
     nx = length(kx)
 
-    for i in 2:nx
+    for i = 2:nx
         Ef[i] = Ef[i] + rhs[i] / (1im * kx[i])
     end
 
-    Ef[1] = 0 
+    Ef[1] = 0
 
     E .= real(ifft(Ef))
 end
@@ -38,23 +45,24 @@ end
 # +
 function HE!(f, r, v, g, nv, kv, dv, nx, dx, dt, d)
 
-    J = vec(sum(v .* f, dims=1 )) .* dv 
-    rho = vec(sum(f, dims=1)) .* dv
+    J = vec(sum(v .* f, dims = 1)) .* dv
+    rho = vec(sum(f, dims = 1)) .* dv
     Jnpdemi = J .+ 0.25 * dt * r * g .* rho
-    rnp1 = (1/(1+(dt*dt/8) * sum(rho .* g.^2) * dx)) * (r-0.5*dt * sum(g .* Jnpdemi) * dx)
-    
-    enew = 0.5 * (rnp1+r) * g 
-    
+    rnp1 =
+        (1/(1+(dt*dt/8) * sum(rho .* g .^ 2) * dx)) * (r-0.5 * dt * sum(g .* Jnpdemi) * dx)
+
+    enew = 0.5 * (rnp1+r) * g
+
     u = zeros(nv)
     u1 = zeros(nv)
-    for i=eachindex(enew)
-        u .= f[:,i]
+    for i in eachindex(enew)
+        u .= f[:, i]
         u1 .= semilag_d2(u, nv, enew[i], dt, dv)
-        f[:,i] .= u1
+        f[:, i] .= u1
     end
-        
+
     return rnp1
-    
+
 end
 
 # +
@@ -64,7 +72,7 @@ function run(nx, nv, tmax, dt, α)
     xmin = 0
     xmax = 2π/kk
     dx = (xmax - xmin)/nx
-    x = LinRange(xmin, xmax, nx+1)[1:end-1] |> collect
+    x = LinRange(xmin, xmax, nx+1)[1:(end-1)] |> collect
 
     # Wavenumbers
     kx = collect(2π/(xmax-xmin) .* fftfreq(nx, nx))
@@ -73,7 +81,7 @@ function run(nx, nv, tmax, dt, α)
     vmin = -14
     vmax = 14
     dv = (vmax - vmin)/nv
-    v = LinRange(vmin, vmax, nv+1)[1:end-1] |> collect
+    v = LinRange(vmin, vmax, nv+1)[1:(end-1)] |> collect
     kv = collect(2π/(vmax-vmin) .* fftfreq(nv, nv))
 
     # Time mesh
@@ -105,7 +113,7 @@ function run(nx, nv, tmax, dt, α)
     diff_sav = Float64[0]
     diff_poisson = Float64[0]
     d = 2
-    rhoh = vec(sum(fn, dims=1)) .* dv  
+    rhoh = vec(sum(fn, dims = 1)) .* dv
 
     fn = feq .* (1 .+ 0.001 * cos.(kk * x'))
     r = √(0.5 * sum(E .^ 2) * dx)
@@ -118,9 +126,9 @@ function run(nx, nv, tmax, dt, α)
         mod(iter, 100) == 0 && println(t)
 
         hf!(fn, E, dt/2, dv, v, kx)
-        r = HE!(fn, r,  v, E / r, nv, kv, dv, nx, dx, dt, d)
+        r = HE!(fn, r, v, E / r, nv, kv, dv, nx, dx, dt, d)
         hf!(fn, E, dt/2, dv, v, kx)
-        
+
         push!(tabt, iter * dt)
         push!(enelec, 0.5 * (dx * sum(E .^ 2)))
         Ef = fft(E)
@@ -145,17 +153,13 @@ nx = 63
 nv = 129
 tmax = 100
 dt = 0.2
-α = 0.001 
+α = 0.001
 @time tabt, enelec, etot, diff_poisson, fn = run(nx, nv, tmax, dt, α)
 
-plot(tabt, enelec, yaxis=:log)
+plot(tabt, enelec, yaxis = :log)
 line, ω, = fit_complex_frequency(tabt, enelec, use_peaks = 1:7)
 plot!(tabt, line, yaxis = :log)
 title!("ω = $(imag(ω))")
 
 
 # -
-
-
-
-

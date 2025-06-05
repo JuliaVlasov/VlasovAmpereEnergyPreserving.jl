@@ -7,7 +7,7 @@ using FFTW
 using LinearAlgebra
 using Plots
 using ProgressMeter
-import VlasovAmpereEnergyPreserving: poisson, semilag_d2 
+import VlasovAmpereEnergyPreserving: poisson, semilag_d2
 using DispersionRelations
 
 function hf_lapenta!(f, E, dt, dv, v, kx)
@@ -35,7 +35,7 @@ function HE_lapenta!(
     rho = vec(sum(f, dims = 1)) .* dv
 
     dt2_rho4 = (dt^2) .* rho ./ 4
-    dt2_rho2 = dt2_rho4 .* 2  
+    dt2_rho2 = dt2_rho4 .* 2
 
     Enew = E ./ (1 .+ dt2_rho4) .- (dt * J) ./ (2 .+ dt2_rho2)
 
@@ -44,8 +44,8 @@ function HE_lapenta!(
     Enp1 = E .- dt .* Jnpdemi
 
     # Semi-Lagrangian step 
-    for i = eachindex(Enew)
-        ft = f[:, i]  
+    for i in eachindex(Enew)
+        ft = f[:, i]
         u1 = semilag_d2(ft, nv, Enew[i], dt, dv)
         f[:, i] .= u1
     end
@@ -62,7 +62,7 @@ function run(nx, nv, tmax, dt, α)
     xmin = 0
     xmax = 2π/kk
     dx = (xmax - xmin)/nx
-    x = LinRange(xmin, xmax, nx+1)[1:end-1] |> collect
+    x = LinRange(xmin, xmax, nx+1)[1:(end-1)] |> collect
 
     # Wavenumbers
     kx = collect(2π/(xmax-xmin) .* fftfreq(nx, nx))
@@ -71,7 +71,7 @@ function run(nx, nv, tmax, dt, α)
     vmin = -14
     vmax = 14
     dv = (vmax - vmin)/nv
-    v = LinRange(vmin, vmax, nv+1)[1:end-1] |> collect
+    v = LinRange(vmin, vmax, nv+1)[1:(end-1)] |> collect
     kv = collect(2π/(vmax-vmin) .* fftfreq(nv, nv))
 
     # Time mesh
@@ -103,7 +103,7 @@ function run(nx, nv, tmax, dt, α)
     diff_sav = Float64[0]
     diff_poisson = Float64[0]
     d = 2
-    rhoh = vec(sum(fn, dims=1)) .* dv  
+    rhoh = vec(sum(fn, dims = 1)) .* dv
 
     fn = feq .* (1 .+ 0.001 * cos.(kk * x'))
     r = √(0.5 * sum(E .^ 2) * dx)
@@ -118,7 +118,7 @@ function run(nx, nv, tmax, dt, α)
         hf_lapenta!(fn, E, dt/2, dv, v, kx)
         HE_lapenta!(fn, E, v, nv, kv, dv, nx, dx, dt)
         hf_lapenta!(fn, E, dt/2, dv, v, kx)
-        
+
         push!(tabt, iter * dt)
         push!(enelec, 0.5 * (dx * sum(E .^ 2)))
         Ef = fft(E)
@@ -143,17 +143,13 @@ nx = 63
 nv = 129
 tmax = 100
 dt = 0.2
-α = 0.001 
+α = 0.001
 @time tabt, enelec, etot, diff_poisson, fn = run(nx, nv, tmax, dt, α)
 
-plot(tabt, enelec, yaxis=:log)
+plot(tabt, enelec, yaxis = :log)
 line, ω, = fit_complex_frequency(tabt, enelec)
 plot!(tabt, line, yaxis = :log)
 title!("ω = $(imag(ω))")
 
 
 # -
-
-
-
-

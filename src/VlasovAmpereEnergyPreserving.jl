@@ -7,5 +7,6 @@ include("poisson.jl")
 include("init_f.jl")
 include("semilagrangian.jl")
 include("updateg.jl")
+include("compute_diag.jl")
 
 end
