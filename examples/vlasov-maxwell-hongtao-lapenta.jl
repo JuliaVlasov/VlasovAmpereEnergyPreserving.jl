@@ -146,8 +146,6 @@ function main()
     vxmin, vxmax = -0.2, 0.2
     vymin, vymax = -0.5, 0.5
 
-    f = zeros(nvx, nvy, nx)
-
     xmin, xmax = 0, 2π / kinit
     dx = (xmax-xmin) / nx
     x = LinRange(xmin, xmax, nx+1)[1:(end-1)]
@@ -159,13 +157,13 @@ function main()
     vx = LinRange(vxmin, vxmax, nvx+1)[1:(end-1)]
     vy = LinRange(vymin, vymax, nvy+1)[1:(end-1)]
 
-    f0 = zeros(nvx, nvy, nx)
+    f = zeros(nvx, nvy, nx)
 
     α = 0.0001
     σ1 = 0.02/sqrt(2)
     σ2 = sqrt(12)*σ1
     for i in eachindex(vx), j in eachindex(vy), k in eachindex(x)
-        f0[i, j, k] =
+        f[i, j, k] =
             exp(-0.5*vx[i]^2/σ1^2) * exp(-0.5*vy[j]^2/σ2^2) * (1 + α*cos(kinit*x[k])) /
             (2π*σ1*σ2)
     end
@@ -176,14 +174,6 @@ function main()
     rho = vec(sum(f0, dims = (1, 2))) * dvx * dvy
     Ex = poisson(rho, x, kx)
     B = α * cos.(kinit .* x)
-
-    f = copy(f0)
-
-    rho0 = copy(rho)
-    Ex0 = copy(Ex)
-    B0 = copy(B)
-    Ey0 = copy(Ey)
-
 
     rx = sqrt(0.5 * sum(Ex .^ 2) * dx + 1.0)
     ry = sqrt(0.5 * sum(Ey .^ 2) * dx + 1.0)
@@ -202,10 +192,7 @@ function main()
         iter += 1
         time += dt
 
-        if mod(iter, 50) == 0
-            screen_var[1] = t
-            @printf("Time: %.2f, Max gy: %.4e\n", t, maximum(abs.(gy)))
-        end
+        @printf("Time: %.2f, Max gy: %.4e\n", time, maximum(abs.(gy)))
 
         hf_lapenta2d!(f, dt, nvy, vx, kx)
         HE_lapenta2d!(f, Ex, Ey, vx, vy, nvx, nvy, dvx, dvy, nx, dx, dt)
@@ -213,10 +200,9 @@ function main()
 
         push!(diags, compute_diag(f, B, Ey, Ex, gy, vx, vy, ry, rx, nx, nvx, nvy, dx, time))
 
-        let rho = sum(f, dims = [1, 2]) * dvx * dvy
-            Ex_poisson = poisson(vec(rho), x, kx)
-            @show iter, time, norm(Ex_poisson - Ex)
-        end
+        rho = sum(f, dims = [1, 2]) * dvx * dvy
+        Ex_poisson = poisson(vec(rho), x, kx)
+        @show iter, time, norm(Ex_poisson - Ex)
 
     end
 
