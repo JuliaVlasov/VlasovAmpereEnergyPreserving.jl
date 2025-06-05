@@ -1,5 +1,6 @@
+#=
 function [ fn,rx,ry, gx, gy ] = HE2(fn,vx,vy,rx,gx,Ex,ry,gy,Ey,Nvx,Nvy,dvx,dvy,Nx,dx,x,dt,d)
-          
+
 %solve the subsystem 
 %df/dt + rxgx df/dvx + rygydf/dvy = 0
 %drx/dt=-0.5*int (gx Jx) dx
@@ -18,7 +19,7 @@ for i=1:Nx
     end
 end
 Jx(1:Nx)=Jx(1:Nx)*dvx*dvy;Jy(1:Nx)=Jy(1:Nx)*dvx*dvy;rho(1:Nx)=rho(1:Nx)*dvx*dvy;
-    
+
 [gx,gy]=updateg(rx,Ex,ry,Ey,x,Nx);
 
 %update rx
@@ -55,4 +56,4 @@ ry=rynp1;
 
 
 end
-
+=#

@@ -1,12 +1,13 @@
+#=
 function [ fn,Ey,ry,B ] = HB2(fn,vx,vy,Ey,ry,gy,B,Nvx,Nvy,kk,kkvx,kkvy,dvx,dvy,Nx,dx,dt,d,meth)
-          
+
 %solve the subsystem 
 %df/dt + B Jv . df/dv = 0
 %dB/dt = -ry d(gy)/dx 
 %dEy/dt=-dB/dx
 %dry/dt=-0.5*int (gy dB/dx)) dx = 0.5*int (d(gy)/dx B) dx 
 %dEx/dt=0
-    
+
 %update ry
 %dxgy=real(ifft(sqrt(-1)*kk.*fft(gy)));
 for i=2:Nx-1
@@ -44,7 +45,7 @@ if (meth==0)
       end
     end
     fn=ifft(fn,[],1);    
-    
+
     fn=fft(fn,[],2);
     for l=1:Nx
      for i=1:Nvx
@@ -54,8 +55,8 @@ if (meth==0)
       end
     end
     fn=ifft(fn,[],2); 
-    
-    
+
+
     fn=fft(fn,[],1);
     for l=1:Nx
       for j=1:Nvy
@@ -65,11 +66,11 @@ if (meth==0)
       end
     end
     fn=ifft(fn,[],1);  
-    
+
 end
 
 if (meth==1)
-    
+
     for j=1:Nvy
         for i=1:Nx
             ft=fn(:,j,i)';
@@ -78,7 +79,7 @@ if (meth==1)
             fn(:,j,i)=u1;
         end
     end
-    
+
     for j=1:Nvx
         for i=1:Nx
             ft=fn(j,:,i);
@@ -96,7 +97,7 @@ if (meth==1)
             fn(:,j,i)=u1;
         end
     end
-    
+
 end
 
 
@@ -106,3 +107,4 @@ B=Bnp1;
 
 end
 
+=#

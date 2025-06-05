@@ -1,5 +1,6 @@
+#=
 function [ fn,Ex,Ey ] = HE_lapenta2d(fn,vx,vy,Ex,Ey,Nvx,Nvy,dvx,dvy,Nx,dx,dt,d)
-          
+
 %solve the subsystem 
 %df/dt + Ex df/dvx + Ey df/dvy = 0
 %dEx/dt=-Jx
@@ -45,3 +46,4 @@ Ey=2*Eynew-Ey;
 
 end
 
+=#

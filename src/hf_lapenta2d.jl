@@ -1,3 +1,4 @@
+#=
 function [ f ] = hf_lapenta2d(dt,Nvy,Vx,kx,f)
 
 %solve the subsystem 
@@ -13,6 +14,7 @@ for j=1:Nvy
     fs=real(ifft((exp(-sqrt(-1)*Vx'.*kx*dt)).*fft(fs')))'; %f(n+1)=exp(-ikvx dt)fn
     f(:,j,:)=fs; %f(n+1)
 end
-    
+
 end
 
+=#
