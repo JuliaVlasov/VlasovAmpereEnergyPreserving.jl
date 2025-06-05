@@ -3,84 +3,125 @@ using LinearAlgebra
 using Printf
 using BenchmarkTools
 
-function main()
-    # Computational domain parameters
-    Nx = 16
-    Nvx = 47
-    Nvy = 47
+function vm_lie_1()
+
+    nx = 16
+    nvx = 47
+    nvy = 47
     dt = 0.125 / 2
     tmax = 300.0
-    Nt = floor(Int, tmax / dt)
+    nt = floor(Int, tmax / dt)
 
-    # Test case selection
-    testcase = 2
     kinit = 1.25
-    vxmax = 0.2
-    vymax = 0.5
+    xmin, xmax = 0, 2π / kinit
+    vxmin, vxmax = -0.2, 0.2
+    vymin, vymax = -0.5, 0.5
 
-    # Initialize arrays
-    finit = zeros(Nvx, Nvy, Nx)
-    f = zeros(Nvx, Nvy, Nx)
-    f1 = zeros(Nvx, Nvy, Nx)
-    f2 = zeros(Nvx, Nvy, Nx)
-    f3 = zeros(Nvx, Nvy, Nx)
-    tr_mat = zeros(Nvx, Nvy, Nx)
-    diag = zeros(10, Nt+1)
-    diag_tmp = zeros(10)
-    screen_var = zeros(3)
+    f = zeros(nvx, nvy, nx)
 
-    # Create phase space meshes
-    x, kk, kx, vxmin, vymin, vx, vy, Vx = create_mesh(kinit, Nx, Nvx, Nvy, vxmax, vymax)
+    x = LinRange(xmin, xmax, nx+1)[1:(end-1)]
+    kx = 2π / (xmax - xmin) * collect(fftfreq(nx, nx))
+    vx = LinRange(vxmin, vxmax, nvx+1)[1:(end-1)]
+    vy = LinRange(vymin, vymax, nvy+1)[1:(end-1)]
 
-    # Initial conditions
-    finit, B, Ey, Ex = init_f(Nx, Nvx, Nvy, x, vx, vy, kinit, kk, testcase)
+    α = 0.0001
+    σ1 = 0.02/sqrt(2)
+    σ2 = sqrt(12)*σ1
+    for i in eachindex(vx), j in eachindex(vy), k in eachindex(x)
+        f[i, j, k] =
+            exp(-0.5*vx[i]^2/σ1^2) * exp(-0.5*vy[j]^2/σ2^2) * (1 + α*cos(kinit*x[k])) /
+            (2π*σ1*σ2)
+    end
+
+    Ex = zeros(nx)
+    Ey = zeros(nx)
+    B = zeros(nx)
     dvx = vx[2] - vx[1]
     dvy = vy[2] - vy[1]
+    rho = vec(sum(f, dims = (1, 2))) * dvx * dvy
+    Ex = poisson(rho, x, kx)
+    B = α * cos.(kinit .* x)
+
+    kvx = 2π / (vxmax - vxmin) * fftfreq(nvx, nvx) |> collect
+    kvy = 2π / (vymax - vymin) * fftfreq(nvy, nvy) |> collect
+
     dx = x[2] - x[1]
-    f = copy(finit)
-    rhoinit = sum(f) * dvx * dvy
-    Exinit = copy(Ex)
-    Binit = copy(B)
-    Eyinit = copy(Ey)
-    rx = sqrt(0.5 * sum(Ex .^ 2) * dx + 1.0)
-    ry = sqrt(0.5 * sum(Ey .^ 2) * dx + 1.0)
-    gx, gy = update_g(rx, Ex, ry, Ey, x, Nx)
+    rx=sqrt(0.5*sum(Ex .* Ex)*dx+1.0)
+    ry=sqrt(0.5*sum(Ey .* Ey)*dx+1.0)
 
-    # Initial diagnostics
-    diag_tmp = compute_diag(f, B, Ey, Ex, gy, vx, vy, ry, rx, Nx, Nvx, Nvy, dx, 0.0)
-    en_init = diag_tmp[7]
-    diag[:, 1] = diag_tmp
-    verif_poisson = [0.0]
+    gx, gy = updateg(rx, Ex, ry, Ey, x)
 
-    # Useful arrays
-    kkvx = 2π / (2 * vxmax) * vcat(0:((Nvx-1)/2), (-(Nvx+1)/2+1):-1)
-    kkvy = 2π / (2 * vymax) * vcat(0:((Nvy-1)/2), (-(Nvy+1)/2+1):-1)
-    X = repeat(x', Nvx, 1)
-    kkv = 2π / (vxmax - vxmin) * vcat(0:floor(Int, Nvx/2), (-floor(Int, Nvx/2)):-1)
-    kv = repeat(kkv, 1, Nx)
-    Vy = repeat(vy, 1, Nx)
-
-    # Interpolation parameters
-    meth = 0
-    d = 1
-    split = 1  # Splitting method
-
-    # Time stepping
     t = 0.0
     iter = 0
+
+
+    """
+    solve the subsystem
+
+    df/dt + vx df/dvx = 0
+    dEx/dt = -Jx
+    dEy/dt = -Jy
+    dB/dt=drx/dt=dry/dt=0
+    """
+    function hf!(f, Ex, Ey, dt, vx, vy, kx)
+
+        rhoh = vec(sum(f, dims = [1,2])) .* dvx .* dvy
+
+        # Initialize arrays
+        fnsvy = similar(f)
+        fnp1vy = similar(f)
+
+        # Loop over vy dimension
+        for j = eachindex(vy)
+            fs = f[:, j, :]  # Extract 2D slice
+            fnsvy[:, j, :] = vy[j] * fs ./ vx
+
+            # Fourier transform and apply phase shift
+            fs_hat = fft(fs', 1)  # FFT along x dimension
+            fs_shifted = exp.(-im * vx' .* kx * dt) .* fs_hat
+            fs = real(ifft(fs_shifted, 1))'  # Inverse FFT
+
+            f[:, j, :] .= fs  # Update distribution function
+            fnp1vy[:, j, :] .= vy[j] * fs ./ vx
+        end
+
+        # Calculate updated charge densities
+        rhohvy = vec(sum(fnsvy, dims = [1,2])) .* dvx .* dvy
+        rhon = vec(sum(f, dims = [1, 2])) .* dvx .* dvy
+        rhonvy = vec(sum(f, dims = [1, 2])) .* dvx .* dvy
+
+        # Compute current and update electric fields
+        k_mod = copy(kx)
+        k_mod[1] = 1  # Avoid division by zero for DC component
+
+        # Update Ex field
+        rhs = (1 ./ (im * k_mod)) .* fft(rhon .- rhoh)
+        Ef = fft(Ex)
+        Ef .+= rhs
+        Ef[1] = 0  # Set DC component to zero
+        Ex .= real(ifft(Ef))
+
+        # Update Ey field
+        rhs = (1 ./ (im * k_mod)) .* fft(rhonvy - rhohvy)
+        Ef = fft(Ey)
+        Ef .+= rhs
+        Ef[1] = 0  # Set DC component to zero
+        Ey .= real(ifft(Ef))
+
+    end
 
     while abs(t - tmax) > 1e-10
         iter += 1
         t += dt
 
-        hf!(f, Ex, Ey, dt, dvx, dvy, Nvx, Nvy, Nx, Vx, vy, kx, kk)
-        gx, gy = update_g(rx, Ex, ry, Ey, x, Nx)
+        hf!(f, Ex, Ey, dt, vy, vy, kx)
+        gx, gy = updateg(rx, Ex, ry, Ey, x)
 
-        HE(f, rx, ry, B, vx, vy, gx, gy, Nvx, Nvy, kk, kv, dvx, dvy, Nx, dx, dt)
-        gx, gy = update_g(rx, Ex, ry, Ey, x, Nx)
+        #HE!(f, rx, ry, B, vx, vy, gx, gy, kx, kv, dt)
+        gx, gy = updateg(rx, Ex, ry, Ey, x)
 
-        HB!(f, Ey, B, vx, vy, kk, kkvx, kkvy, Nvx, Nvy, dvx, dvy, Nx, dt)
-        gx, gy = update_g(rx, Ex, ry, Ey, x, Nx)
+        #HB!(f, Ey, B, vx, vy, kx, kvx, kvy, dt)
+        gx, gy = updateg(rx, Ex, ry, Ey, x)
 
     end
 
@@ -89,4 +130,4 @@ end
 
 
 # Run the simulation
-@time results = main()
+@time results = vm_lie_1()

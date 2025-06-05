@@ -7,7 +7,7 @@ using DataFrames
 # Hongtao-Lapenta splitting
 
 
-function hf_lapenta2d!(f, dt, nvy, vx, kx)
+function hf_lapenta2d!(f, dt, vx, kx)
 
     for j in axes(f, 2)
 
@@ -32,7 +32,13 @@ math```
 ```
 
 """
-function HE_lapenta2d!(f, Ex, Ey, vx, vy, nvx, nvy, dvx, dvy, nx, dx, dt)
+function HE_lapenta2d!(f, Ex, Ey, vx, vy, dt)
+
+    nx = length(Ex)
+    nvx = length(vx)
+    nvy = length(vy)
+    dvx = vx[2] - vx[1]
+    dvy = vy[2] - vy[1]
 
     Jx = zeros(nx)
     Jy = zeros(nx)
@@ -171,7 +177,7 @@ function main()
     Ex = zeros(nx)
     Ey = zeros(nx)
     B = zeros(nx)
-    rho = vec(sum(f0, dims = (1, 2))) * dvx * dvy
+    rho = vec(sum(f, dims = (1, 2))) * dvx * dvy
     Ex = poisson(rho, x, kx)
     B = α * cos.(kinit .* x)
 
@@ -194,8 +200,8 @@ function main()
 
         @printf("Time: %.2f, Max gy: %.4e\n", time, maximum(abs.(gy)))
 
-        hf_lapenta2d!(f, dt, nvy, vx, kx)
-        HE_lapenta2d!(f, Ex, Ey, vx, vy, nvx, nvy, dvx, dvy, nx, dx, dt)
+        hf_lapenta2d!(f, dt, vx, kx)
+        HE_lapenta2d!(f, Ex, Ey, vx, vy, dt)
         HB_lapenta2d!(f, Ex, Ey, B, vx, vy, kx, kvx, kvy, dt)
 
         push!(diags, compute_diag(f, B, Ey, Ex, gy, vx, vy, ry, rx, nx, nvx, nvy, dx, time))

@@ -20,8 +20,9 @@ function [ gx,gy ] = updateg(rx,Ex,ry,Ey,x,Nx )
 end
 =#
 
-function updateg(rx, Ex, ry, Ey, x, nx)
+function updateg(rx, Ex, ry, Ey, x)
 
+    nx = length(x)
     xmax=x[2]+x[end]
     k=2pi/xmax
 
