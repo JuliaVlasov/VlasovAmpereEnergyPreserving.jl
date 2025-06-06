@@ -2,6 +2,7 @@ using FFTW
 using LinearAlgebra
 using Printf
 using BenchmarkTools
+using .Threads
 
 function vm_lie_1()
 
@@ -65,14 +66,14 @@ function vm_lie_1()
     """
     function hf!(f, Ex, Ey, dt, vx, vy, kx)
 
-        rhoh = vec(sum(f, dims = [1,2])) .* dvx .* dvy
+        rhoh = vec(sum(f, dims = [1, 2])) .* dvx .* dvy
 
         # Initialize arrays
         fnsvy = similar(f)
         fnp1vy = similar(f)
 
         # Loop over vy dimension
-        for j = eachindex(vy)
+        for j in eachindex(vy)
             fs = f[:, j, :]  # Extract 2D slice
             fnsvy[:, j, :] = vy[j] * fs ./ vx
 
@@ -86,7 +87,7 @@ function vm_lie_1()
         end
 
         # Calculate updated charge densities
-        rhohvy = vec(sum(fnsvy, dims = [1,2])) .* dvx .* dvy
+        rhohvy = vec(sum(fnsvy, dims = [1, 2])) .* dvx .* dvy
         rhon = vec(sum(f, dims = [1, 2])) .* dvx .* dvy
         rhonvy = vec(sum(f, dims = [1, 2])) .* dvx .* dvy
 
@@ -110,6 +111,125 @@ function vm_lie_1()
 
     end
 
+
+
+    """
+    solve the subsystem 
+    df/dt + rxgx df/dvx + rygydf/dvy = 0
+    dB/dt = -d(ry gy)/dx 
+    drx/dt=-0.5*int (gx Jx) dx
+    dry/dt=-0.5*int (gy (Jy+dB/dx)) dx
+    dEx/dt=dEy/dt=0
+    """
+    function HE!(fn, rx, ry, B, vx, vy, gx, gy, kx, dt)
+
+
+        for i = 1:Nx
+            Jx(i)=0.0;
+            Jy(i)=0.0;
+            rho(i)=0;
+            for j = 1:Nvx
+                for k = 1:Nvy
+                    Jx(i)=Jx(i)+vx(j)*fn(j, k, i);
+                    Jy(i)=Jy(i)+vy(k)*fn(j, k, i);
+                    rho(i)=rho(i)+fn(j, k, i);
+                end
+            end
+        end
+        Jx=Jx*dvx*dvy;
+        Jy=Jy*dvx*dvy;
+        rho=rho*dvx*dvy;
+
+        Jxnpdemi=Jx+0.25*dt*rx*gx .* rho;
+        denom=1+(dt*dt/8)*sum(rho .* gx .^ 2)*dx;
+        rxnp1=(rx-0.5*dt*sum(gx .* Jx)*dx-(dt*dt/8)*rx*sum(rho .* gx .^ 2)*dx)/denom;
+        Exnew=0.5*(rxnp1+rx)*gx;
+
+        Jynpdemi=Jy+0.25*dt*ry*gy .* rho;
+        dxgy=real(ifft(sqrt(-1)*kk .* fft(gy)));
+        dx2gy=real(ifft(-kk .* kk .* fft(gy)));
+        dxB=real(ifft(sqrt(-1)*kk .* fft(B)));
+        denom=1+(dt*dt/8)*sum(rho .* gy .^ 2)*dx+(dt*dt/8)*sum(dxgy .* dxgy)*dx;
+        rynp1=(
+            ry-0.5*dt*sum(
+                Jy .* gy,
+            )*dx+0.5*dt*sum(
+                B .* dxgy,
+            )*dx-(dt*dt/8)*ry*sum(rho .* gy .^ 2)*dx-(dt*dt/8)*ry*sum(dxgy .* dxgy)*dx
+        )/denom;
+
+        Eynew=0.5*(rynp1+ry)*gy;
+
+        faraday=real(ifft(sqrt(-1)*kk .* fft(Eynew)));
+
+        B=B-dt*faraday;
+
+        for j = 1:Nvy
+            for i = 1:Nx
+                ft=fn(:, j, i)';
+                u1=semilag(ft, Nvx, Exnew(i), dt, dvx, d);
+                fn(:, j, i)=u1;
+            end
+        end
+
+
+        for j = 1:Nvx
+            for i = 1:Nx
+                ft=fn(j, :, i);
+                u1=semilag(ft, Nvy, Eynew(i), dt, dvy, d);
+                fn(j, :, i)=u1;
+            end
+        end
+
+        rx=rxnp1;
+        ry=rynp1;
+
+    end
+
+
+    """
+    solve the subsystem 
+    df/dt+B Jv.df/dv=0 (with semi-Lagrangian + exact splitting) 
+    dEy/dt=-dB/dx
+    dB/dt=drx/dt=dry/dt=0
+    """
+    function HB!(fn, Ey, B, vx, vy, kx, kvx, kvy, dt)
+
+        fn=fft(fn, [], 1);
+        for l = 1:Nx
+            for j = 1:Nvy
+                for i = 1:Nvx
+                    fn(i, j, l)=exp(-1i*kkvx(i)*vy(j)*tan(B(l)*dt/2)) .* fn(i, j, l);
+                end
+            end
+        end
+        fn=ifft(fn, [], 1);
+
+        fn=fft(fn, [], 2);
+        for l = 1:Nx
+            for i = 1:Nvx
+                for j = 1:Nvy
+                    fn(i, j, l)=exp(1i*kkvy(j)*vx(i)*sin(B(l)*dt)) .* fn(i, j, l);
+                end
+            end
+        end
+        fn=ifft(fn, [], 2);
+
+
+        fn=fft(fn, [], 1);
+        for l = 1:Nx
+            for j = 1:Nvy
+                for i = 1:Nvx
+                    fn(i, j, l)=exp(-1i*kkvx(i)*vy(j)*tan(B(l)*dt/2)) .* fn(i, j, l);
+                end
+            end
+        end
+        fn=ifft(fn, [], 1);
+
+        amperey=real(ifft(sqrt(-1)*kk .* fft(B)));
+        Ey=Ey-dt*amperey;
+    end
+
     while abs(t - tmax) > 1e-10
         iter += 1
         t += dt
@@ -117,10 +237,10 @@ function vm_lie_1()
         hf!(f, Ex, Ey, dt, vy, vy, kx)
         gx, gy = updateg(rx, Ex, ry, Ey, x)
 
-        #HE!(f, rx, ry, B, vx, vy, gx, gy, kx, kv, dt)
+        rx, ry = HE!(f, rx, ry, B, vx, vy, gx, gy, kx, dt)
         gx, gy = updateg(rx, Ex, ry, Ey, x)
 
-        #HB!(f, Ey, B, vx, vy, kx, kvx, kvy, dt)
+        HB!(f, Ey, B, vx, vy, kx, kvx, kvy, dt)
         gx, gy = updateg(rx, Ex, ry, Ey, x)
 
     end
