@@ -124,16 +124,14 @@ function vm_lie_1()
     function HE!(fn, rx, ry, B, vx, vy, gx, gy, kx, dt)
 
 
-        for i = 1:Nx
+        for i = 1:nx
             Jx(i)=0.0;
             Jy(i)=0.0;
             rho(i)=0;
-            for j = 1:Nvx
-                for k = 1:Nvy
-                    Jx(i)=Jx(i)+vx(j)*fn(j, k, i);
-                    Jy(i)=Jy(i)+vy(k)*fn(j, k, i);
-                    rho(i)=rho(i)+fn(j, k, i);
-                end
+            for j = 1:nvx, k = 1:nvy
+                Jx(i)=Jx(i)+vx(j)*fn(j, k, i);
+                Jy(i)=Jy(i)+vy(k)*fn(j, k, i);
+                rho(i)=rho(i)+fn(j, k, i);
             end
         end
         Jx=Jx*dvx*dvy;
@@ -164,21 +162,17 @@ function vm_lie_1()
 
         B=B-dt*faraday;
 
-        for j = 1:Nvy
-            for i = 1:Nx
-                ft=fn(:, j, i)';
-                u1=semilag(ft, Nvx, Exnew(i), dt, dvx, d);
-                fn(:, j, i)=u1;
-            end
+        for j = 1:nvy, i = 1:nx
+            ft = fn[:, j, i]
+            u1 = semilag_d2(ft, nvx, Exnew[i], dt, dvx)
+            fn[:, j, i] .= u1
         end
 
 
-        for j = 1:Nvx
-            for i = 1:Nx
-                ft=fn(j, :, i);
-                u1=semilag(ft, Nvy, Eynew(i), dt, dvy, d);
-                fn(j, :, i)=u1;
-            end
+        for j = 1:nvx, i = 1:nx
+            ft=fn[j, :, i]
+            u1=semilag(ft, nvy, Eynew(i), dt, dvy, d);
+            fn[j, :, i] .= u1
         end
 
         rx=rxnp1;
@@ -193,41 +187,28 @@ function vm_lie_1()
     dEy/dt=-dB/dx
     dB/dt=drx/dt=dry/dt=0
     """
-    function HB!(fn, Ey, B, vx, vy, kx, kvx, kvy, dt)
+    function HB!(f, Ey, B, vx, vy, kx, kvx, kvy, dt)
 
-        fn=fft(fn, [], 1);
-        for l = 1:Nx
-            for j = 1:Nvy
-                for i = 1:Nvx
-                    fn(i, j, l)=exp(-1i*kkvx(i)*vy(j)*tan(B(l)*dt/2)) .* fn(i, j, l);
-                end
-            end
+        fn = fft(f, 1)
+        for l = 1:nx, j = 1:nvy, i = 1:nvx
+            fn[i, j, l]=exp(-1im*kvx[i]*vy[j]*tan(B[l]*dt/2)) * fn[i, j, l]
         end
-        fn=ifft(fn, [], 1);
+        fn .= ifft(fn, 1)
 
-        fn=fft(fn, [], 2);
-        for l = 1:Nx
-            for i = 1:Nvx
-                for j = 1:Nvy
-                    fn(i, j, l)=exp(1i*kkvy(j)*vx(i)*sin(B(l)*dt)) .* fn(i, j, l);
-                end
-            end
+        fn .= fft(fn, 2)
+        for l = 1:nx, i = 1:nvx, j = 1:nvy
+            fn[i, j, l]=exp(1im*kkvy(j)*vx(i)*sin(B(l)*dt)) * fn[i, j, l];
         end
-        fn=ifft(fn, [], 2);
+        fn .= ifft(fn, 2)
 
-
-        fn=fft(fn, [], 1);
-        for l = 1:Nx
-            for j = 1:Nvy
-                for i = 1:Nvx
-                    fn(i, j, l)=exp(-1i*kkvx(i)*vy(j)*tan(B(l)*dt/2)) .* fn(i, j, l);
-                end
-            end
+        fn .= fft(fn, 1)
+        for l = 1:nx, j = 1:nvy, i = 1:nvx
+            fn[i, j, l]=exp(-1im*kkvx(i)*vy(j)*tan(B(l)*dt/2)) * fn[i, j, l]
         end
-        fn=ifft(fn, [], 1);
+        fn .= ifft(fn, 1)
 
-        amperey=real(ifft(sqrt(-1)*kk .* fft(B)));
-        Ey=Ey-dt*amperey;
+        amperey=real(ifft(1im * kk .* fft(B)))
+        Ey .= Ey .- dt .* amperey
     end
 
     while abs(t - tmax) > 1e-10
