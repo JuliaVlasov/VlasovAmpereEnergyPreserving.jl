@@ -1,182 +1,217 @@
+
 using FFTW
 using LinearAlgebra
 using Printf
 using BenchmarkTools
+using .Threads
+import VlasovAmpereEnergyPreserving: poisson, updateg, semilag_d2, compute_diag
 
-# Computational domain parameters
-Nx = 16
-Nvx = 47
-Nvy = 47
-dt = 0.125 / 2
-tmax = 300.0
-Nt = floor(Int, tmax / dt)
+"""
+solve the subsystem 
+df/dt + rxgx df/dvx + rygydf/dvy = 0
+drx/dt=-0.5*int (gx Jx) dx
+dry/dt=-0.5*int (gy Jy) dx
+dEx/dt=dEy/dt=dB/dt =0
+"""
 
-# Test case selection
-testcase = 2
-kinit = 1.25
-vxmax = 0.2
-vymax = 0.5
+function HE2(f, vx, vy, rx, gx, Ex, ry, gy, Ey, dx, dt)
 
-# Initialize arrays
-finit = zeros(Nvx, Nvy, Nx)
-f = zeros(Nvx, Nvy, Nx)
-f1 = zeros(Nvx, Nvy, Nx)
-f2 = zeros(Nvx, Nvy, Nx)
-f3 = zeros(Nvx, Nvy, Nx)
-tr_mat = zeros(Nvx, Nvy, Nx)
-diag = zeros(10, Nt+1)
-diag_tmp = zeros(10)
-screen_var = zeros(3)
 
-# Create phase space meshes
-x, kk, kx, vxmin, vymin, vx, vy, Vx = create_mesh(kinit, Nx, Nvx, Nvy, vxmax, vymax)
+    nvx, nvy, nx = size(f)
 
-# Initial conditions
-finit, B, Ey, Ex = init_f(Nx, Nvx, Nvy, x, vx, vy, kinit, kk, testcase)
-dvx = vx[2] - vx[1]
-dvy = vy[2] - vy[1]
-dx = x[2] - x[1]
-f = copy(finit)
-rhoinit = sum(f) * dvx * dvy
-Exinit = copy(Ex)
-Binit = copy(B)
-Eyinit = copy(Ey)
-rx = sqrt(0.5 * sum(Ex .^ 2) * dx + 1.0)
-ry = sqrt(0.5 * sum(Ey .^ 2) * dx + 1.0)
-gx, gy = update_g(rx, Ex, ry, Ey, x, Nx)
+    Jx = zeros(nx)
+    Jy = zeros(ny)
+    rho = zeros(nx)
 
-# Initial diagnostics
-diag_tmp = compute_diag(f, B, Ey, Ex, gy, vx, vy, ry, rx, Nx, Nvx, Nvy, dx, 0.0)
-en_init = diag_tmp[7]
-diag[:, 1] = diag_tmp
-verif_poisson = [0.0]
+    for i = 1:nx
+        Jx[i]=0.0
+        Jy[i]=0.0
+        rho[i]=0.0;
+        for j = 1:nvx, k = 1:nvy
+            Jx[i] += vx(j)*f[j, k, i]
+            Jy[i] += vy(k)*f[j, k, i]
+            rho[i] += fn[j, k, i]
+        end
+    end
+    Jx .*= dvx * dvy
+    Jy .*= dvx * dvy
+    rho .*= dvx * dvy
 
-# Useful arrays
-kkvx = 2π / (2 * vxmax) * vcat(0:((Nvx-1)/2), (-(Nvx+1)/2+1):-1)
-kkvy = 2π / (2 * vymax) * vcat(0:((Nvy-1)/2), (-(Nvy+1)/2+1):-1)
-X = repeat(x', Nvx, 1)
-kkv = 2π / (vxmax - vxmin) * vcat(0:floor(Int, Nvx/2), (-floor(Int, Nvx/2)):-1)
-kv = repeat(kkv, 1, Nx)
-Vy = repeat(vy, 1, Nx)
+    gx, gy = updateg(rx, Ex, ry, Ey, x, nx)
 
-# Interpolation parameters
-meth = 0
-d = 1
-split = 1  # Splitting method
+    denom=1+(dt*dt/8.0)*sum(rho .* gx .^ 2)*dx;
+    rxnp1=(rx-0.5*dt*sum(gx .* Jx)*dx-(dt*dt/8.0)*rx*sum(rho .* gx .^ 2)*dx)/denom;
+    rxdemi=rx/denom-(0.25*dt/denom)*sum(gx .* Jx)*dx;
+    Exnew=rxdemi*gx;
 
-# Time stepping
-t = 0.0
-iter = 0
+    denom=1+(dt*dt/8.0)*sum(rho .* gy .^ 2)*dx;
+    rynp1=(ry-0.5*dt*sum(Jy .* gy)*dx-(dt*dt/8.0)*ry*sum(rho .* gy .^ 2)*dx)/denom;
+    rydemi=ry/denom-(0.25*dt/denom)*sum(gy .* Jy)*dx;
+    Eynew=rydemi*gy;
 
-while abs(t - tmax) > 1e-10
-    iter += 1
-    t += dt
-
-    if mod(iter, 50) == 0
-        screen_var[1] = t
-        @printf("Time: %.2f, Max gy: %.4e\n", t, maximum(abs.(gy)))
+    for j = 1:nvy, i = 1:nx
+        ft=f[:, j, i]
+        u1=semilag_d2(ft, nvx, Exnew[i], dt, dvx)
+        f[:, j, i] .= u1
     end
 
-    if split == 0
-        # Hongtao-Lapenta splitting
-        f = hf_lapenta2d(dt, Nvy, Vx, kx, f)
-        f, Ex, Ey = HE_lapenta2d(f, vx, vy, Ex, Ey, Nvx, Nvy, dvx, dvy, Nx, dx, dt, d)
-        f, Ex, Ey, B = HB_lapenta2d(
-            f,
-            Ex,
-            Ey,
-            B,
-            vx,
-            vy,
-            kk,
-            kkvx,
-            kkvy,
-            Nvx,
-            Nvy,
-            dvx,
-            dvy,
-            Nx,
-            dt,
-            dx,
-            d,
-            meth,
-        )
-    elseif split == 1
-        # Lie splitting (SAV 1st splitting)
-        f, Ex, Ey = hf(dt, dvx, dvy, Nvx, Nvy, Nx, Vx, vy, kx, kk, f, Ex, Ey)
-        gx, gy = update_g(rx, Ex, ry, Ey, x, Nx)
 
-        f, rx, ry, B = HE(
-            f,
-            vx,
-            vy,
-            Vx,
-            Vy,
-            rx,
-            gx,
-            ry,
-            gy,
-            B,
-            Nvx,
-            Nvy,
-            kk,
-            kv,
-            dvx,
-            dvy,
-            Nx,
-            dx,
-            dt,
-            d,
-        )
-        gx, gy = update_g(rx, Ex, ry, Ey, x, Nx)
-
-        f, Ey = HB(f, Ey, B, vx, vy, kk, kkvx, kkvy, Nvx, Nvy, dvx, dvy, Nx, dt, d, meth)
-        gx, gy = update_g(rx, Ex, ry, Ey, x, Nx)
-    elseif split == 3
-        # Lie splitting (SAV 2nd splitting)
-        f, Ex, Ey = hf(dt, dvx, dvy, Nvx, Nvy, Nx, Vx, vy, kx, kk, f, Ex, Ey)
-        gx, gy = update_g(rx, Ex, ry, Ey, x, Nx)
-
-        f, rx, ry, gx, gy =
-            HE2(f, vx, vy, rx, gx, Ex, ry, gy, Ey, Nvx, Nvy, dvx, dvy, Nx, dx, x, dt, d)
-        gx, gy = update_g(rx, Ex, ry, Ey, x, Nx)
-
-        f, Ey, ry, B = HB2(
-            f,
-            vx,
-            vy,
-            Ey,
-            ry,
-            gy,
-            B,
-            Nvx,
-            Nvy,
-            kk,
-            kkvx,
-            kkvy,
-            dvx,
-            dvy,
-            Nx,
-            dx,
-            dt,
-            d,
-            meth,
-        )
-        gx, gy = update_g(rx, Ex, ry, Ey, x, Nx)
+    for j = 1:nvx, i = 1:nx
+        ft = fn[j, :, i]
+        u1 = semilag(ft, nvy, Eynew[i], dt, dvy)
+        f[j, :, i] .= u1
     end
 
-    # Diagnostics
-    diag_tmp = compute_diag(f, B, Ey, Ex, gy, vx, vy, ry, rx, Nx, Nvx, Nvy, dx, t)
-    rho = sum(f) * dvx * dvy
-    Ex_poisson = poisson(dropdims(sum(f, dims = (1, 2)), x, kk))
-    push!(verif_poisson, norm(Ex_poisson - Ex))
-    diag[:, iter+1] = diag_tmp
+    rxnp1, rynp1
+
 end
 
-# End timer and print results
-elapsed_time = time() - start_time
-@printf("\nSimulation completed in %.2f seconds\n", elapsed_time)
+
+"""
+solve the subsystem 
+df/dt + B Jv . df/dv = 0
+dB/dt = -ry d(gy)/dx 
+dEy/dt=-dB/dx
+dry/dt=-0.5*int (gy dB/dx)) dx = 0.5*int (d(gy)/dx B) dx 
+dEx/dt=0
+"""
+function HB2!(f, vx, vy, Ey, ry, gy, B, kx, kvx, kvy, dt)
+
+    for i = 2:(nx-1)
+        dxgy[i]=(gy[i+1]-gy[i-1]) / (2dx)
+    end
+    dxgy(1)=(gy(2)-gy(nx))/(2.0*dx);
+    dxgy(nx)=(gy(1)-gy(nx-1))/(2.0*dx);
+    denom=1+(dt*dt/8.0)*sum(dxgy .* dxgy)*dx;
+    rynp1=(ry+0.5*dt*sum(B .* dxgy)*dx-(dt*dt/8.0)*ry*sum(dxgy .* dxgy)*dx)/denom;
+    rydemi=ry/denom+0.25*dt*sum(B .* dxgy)*dx/denom;
+
+    Bnp1=B-dt*rydemi*dxgy;
+    Bdemi=B-0.5*dt*rydemi*dxgy;
+    for i = 2:(nx-1)
+        dxBdemi(i)=(Bdemi(i+1)-Bdemi(i-1))/(2.0*dx);
+    end
+    dxBdemi(1)=(Bdemi(2)-Bdemi(nx))/(2.0*dx);
+    dxBdemi(nx)=(Bdemi(1)-Bdemi(nx-1))/(2.0*dx);
+
+    Eynp1=Ey-dt*dxBdemi;
+
+    fn=fft(fn, [], 1);
+    for l = 1:nx
+        for j = 1:nvy
+            for i = 1:nvx
+                fn(i, j, l)=exp(-1i*kkvx(i)*vy(j)*tan(Bdemi(l)*dt/2)) .* fn(i, j, l);
+            end
+        end
+    end
+    fn=ifft(fn, [], 1);
+
+    fn=fft(fn, [], 2);
+    for l = 1:nx
+        for i = 1:nvx
+            for j = 1:nvy
+                fn(i, j, l)=exp(1i*kkvy(j)*vx(i)*sin(Bdemi(l)*dt)) .* fn(i, j, l);
+            end
+        end
+    end
+    fn=ifft(fn, [], 2);
+
+
+    fn=fft(fn, [], 1);
+    for l = 1:nx
+        for j = 1:nvy
+            for i = 1:nvx
+                fn(i, j, l)=exp(-1i*kkvx(i)*vy(j)*tan(Bdemi(l)*dt/2)) .* fn(i, j, l);
+            end
+        end
+    end
+    fn=ifft(fn, [], 1);
+
+    Ey=Eynp1;
+    ry=rynp1;
+    B=Bnp1;
+
+end
+
+function vm_lie_2(tmax)
+
+    nx = 16
+    nvx = 47
+    nvy = 47
+    dt = 0.125 / 2
+    nt = floor(Int, tmax / dt)
+
+    kinit = 1.25
+    xmin, xmax = 0, 2π / kinit
+    vxmin, vxmax = -0.2, 0.2
+    vymin, vymax = -0.5, 0.5
+
+    f = zeros(nvx, nvy, nx)
+
+    x = LinRange(xmin, xmax, nx+1)[1:(end-1)]
+    kx = 2π / (xmax - xmin) * collect(fftfreq(nx, nx))
+    vx = LinRange(vxmin, vxmax, nvx+1)[1:(end-1)]
+    vy = LinRange(vymin, vymax, nvy+1)[1:(end-1)]
+
+    α = 0.0001
+    σ1 = 0.02/sqrt(2)
+    σ2 = sqrt(12)*σ1
+    for i in eachindex(vx), j in eachindex(vy), k in eachindex(x)
+        f[i, j, k] =
+            exp(-0.5*vx[i]^2/σ1^2) * exp(-0.5*vy[j]^2/σ2^2) * (1 + α*cos(kinit*x[k])) /
+            (2π*σ1*σ2)
+    end
+
+    Ex = zeros(nx)
+    Ey = zeros(nx)
+    B = zeros(nx)
+    dvx = vx[2] - vx[1]
+    dvy = vy[2] - vy[1]
+    rho = vec(sum(f, dims = (1, 2))) * dvx * dvy
+    Ex .= poisson(rho, x, kx)
+    B = α * cos.(kinit .* x)
+
+    kvx = 2π / (vxmax - vxmin) * fftfreq(nvx, nvx) |> collect
+    kvy = 2π / (vymax - vymin) * fftfreq(nvy, nvy) |> collect
+
+    dx = x[2] - x[1]
+    rx=sqrt(0.5*sum(Ex .* Ex)*dx+1.0)
+    ry=sqrt(0.5*sum(Ey .* Ey)*dx+1.0)
+
+    gx, gy = updateg(rx, Ex, ry, Ey, x)
+
+    t = 0.0
+    iter = 0
+
+
+    diags = [compute_diag(f, B, Ey, Ex, vx, vy, ry, rx, dx, t)]
+
+    while abs(t - tmax) > 1e-10
+        iter += 1
+        t += dt
+
+        hf!(f, Ex, Ey, dt, vy, vy, kx)
+        gx, gy = updateg(rx, Ex, ry, Ey, x)
+
+        HB!(f, Ey, B, vx, vy, kx, kvx, kvy, dt)
+        gx, gy = updateg(rx, Ex, ry, Ey, x)
+
+        rx, ry, gx, gy = HE2(f, vx, vy, rx, gx, Ex, ry, gy, Ey, x, dt)
+        gx, gy = update_g(rx, Ex, ry, Ey, x)
+
+        rx, ry = HB2(f, vx, vy, Ey, ry, gy, B, kx, kvx, kvy, dt)
+        gx, gy = updateg(rx, Ex, ry, Ey, x)
+
+
+        push!(diags, compute_diag(f, B, Ey, Ex, vx, vy, ry, rx, dx, t))
+
+    end
+
+    return diags
+
+end
 
 
 # Run the simulation
-diag, verif_poisson = vm_1d2v_simulation()
+tmax = 100.0
+@time lie2 = vm_lie_2(tmax)
