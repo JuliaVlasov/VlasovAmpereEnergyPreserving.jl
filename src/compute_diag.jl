@@ -29,7 +29,7 @@ end
 
 export compute_diag
 
-function compute_diag(f, B, Ey, Ex, vx, vy, ry, rx,  dx, t)
+function compute_diag(f, B, Ey, Ex, vx, vy, ry, rx, dx, t)
 
     dvx=vx[2]-vx[1]
     dvy=vy[2]-vy[1]
