@@ -88,7 +88,7 @@ function HE!(fn, rx, ry, B, vx, vy, gx, gy, kx, dx, dt)
         Jx[i]=0.0
         Jy[i]=0.0
         rho[i]=0.0
-        for j = axes(fn,1), k = axes(fn,2)
+        for j in axes(fn, 1), k in axes(fn, 2)
             Jx[i] += vx[j]*fn[j, k, i]
             Jy[i] += vy[k]*fn[j, k, i]
             rho[i] += fn[j, k, i]
@@ -123,14 +123,14 @@ function HE!(fn, rx, ry, B, vx, vy, gx, gy, kx, dx, dt)
 
     B=B-dt*faraday;
 
-    for j = axes(fn,2), i = eachindex(Exnew)
+    for j in axes(fn, 2), i in eachindex(Exnew)
         ft = fn[:, j, i]
         u1 = semilag_d2(ft, nvx, Exnew[i], dt, dvx)
         fn[:, j, i] .= u1
     end
 
 
-    for j = axes(fn,1), i = eachindex(Exnew)
+    for j in axes(fn, 1), i in eachindex(Exnew)
         ft=fn[j, :, i]
         u1=semilag_d2(ft, nvy, Eynew[i], dt, dvy)
         fn[j, :, i] .= u1
