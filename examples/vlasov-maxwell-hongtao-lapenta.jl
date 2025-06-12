@@ -192,7 +192,7 @@ function main()
     time = 0.0
     iter = 0
 
-    diags = [compute_diag(f, B, Ey, Ex, gy, vx, vy, ry, rx, nx, nvx, nvy, dx, time)]
+    diags = [compute_diag(f, B, Ey, Ex, vx, vy, ry, rx, dx, time)]
 
     while abs(time - tmax) > 1e-10
         iter += 1
@@ -204,7 +204,7 @@ function main()
         HE_lapenta2d!(f, Ex, Ey, vx, vy, dt)
         HB_lapenta2d!(f, Ex, Ey, B, vx, vy, kx, kvx, kvy, dt)
 
-        push!(diags, compute_diag(f, B, Ey, Ex, gy, vx, vy, ry, rx, nx, nvx, nvy, dx, time))
+        push!(diags, compute_diag(f, B, Ey, Ex, vx, vy, ry, rx, dx, time))
 
         rho = sum(f, dims = [1, 2]) * dvx * dvy
         Ex_poisson = poisson(vec(rho), x, kx)
@@ -217,4 +217,4 @@ function main()
 end
 
 
-@time results = main()
+@time lapenta = main()
