@@ -1,12 +1,12 @@
 
 #=
-function diag = compute_diag(f,B,Ey,Ex,gy,vx,vy,ry,rx,Nx,Nvx,Nvy,dx,t)
+function diag = compute_diag(f,B,Ey,Ex,gy,vx,vy,ry,rx,nx,nvx,nvy,dx,t)
 
     dvx=vx(2)-vx(1);dvy=vy(2)-vy(1);dxv=dx*dvx*dvy;
     kin=0;
-    for k=1:Nx
-        for i=1:Nvx-1
-            for j=1:Nvy-1
+    for k=1:nx
+        for i=1:nvx-1
+            for j=1:nvy-1
                 normv=vx(i)*vx(i)+vy(j)*vy(j);
                 kin=kin+normv*f(i,j,k);
             end
@@ -29,7 +29,7 @@ end
 
 export compute_diag
 
-function compute_diag(f, B, Ey, Ex, gy, vx, vy, ry, rx, Nx, Nvx, Nvy, dx, t)
+function compute_diag(f, B, Ey, Ex, vx, vy, ry, rx,  dx, t)
 
     dvx=vx[2]-vx[1]
     dvy=vy[2]-vy[1]
