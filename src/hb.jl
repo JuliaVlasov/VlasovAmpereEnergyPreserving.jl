@@ -4,7 +4,7 @@ df/dt+B Jv.df/dv=0 (with semi-Lagrangian + exact splitting)
 dEy/dt=-dB/dx
 dB/dt=drx/dt=dry/dt=0
 """
-function HB!(f, Ey, B, vx, vy, kx, kvx, kvy, dt)
+function HB!(f, Ey, B, mesh, kx, kvx, kvy, dt)
 
     nvx, nvy, nx = size(f)
 
@@ -14,19 +14,19 @@ function HB!(f, Ey, B, vx, vy, kx, kvx, kvy, dt)
 
     ft = fft(f, 1)
     for l in 1:nx, j in 1:nvy, i in 1:nvx
-        ft[i, j, l] *= exp(-1im*kvx[i]*vy[j]*tan(B[l]*hdt)) 
+        ft[i, j, l] *= exp(-1im*kvx[i]*mesh.vy[j]*tan(B[l]*hdt)) 
     end
     ft .= ifft(ft, 1)
 
     ft .= fft(ft, 2)
     for l in 1:nx, i in 1:nvx, j in 1:nvy
-        ft[i, j, l] *= exp(1im*kvy[j]*vx[i]*sin(B[l]*dt))
+        ft[i, j, l] *= exp(1im*kvy[j]*mesh.vx[i]*sin(B[l]*dt))
     end
     ft .= ifft(ft, 2)
 
     ft .= fft(ft, 1)
     for l in 1:nx, j in 1:nvy, i in 1:nvx
-        ft[i, j, l] *= exp(-1im*kvx[i]*vy[j]*tan(B[l]*hdt)) 
+        ft[i, j, l] *= exp(-1im*kvx[i]*mesh.vy[j]*tan(B[l]*hdt)) 
     end
     ft .= ifft(ft, 1)
 

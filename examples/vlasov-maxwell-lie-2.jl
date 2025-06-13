@@ -5,7 +5,7 @@ using Printf
 using BenchmarkTools
 using .Threads
 import VlasovAmpereEnergyPreserving: poisson!, updateg, semilag_d2, compute_diag
-import VlasovAmpereEnergyPreserving: HE2!, HB2!, updateg!
+import VlasovAmpereEnergyPreserving: HE2!, HB2!, updateg!, Mesh1D2V, hf!
 
 
 
@@ -17,16 +17,18 @@ function vm_lie_2(tmax)
     nt = floor(Int, tmax / dt)
 
     kinit = 1.25
-    xmin, xmax = 0, 2π / kinit
+    xmin, xmax = 0.0, 2π / kinit
     vxmin, vxmax = -0.2, 0.2
     vymin, vymax = -0.5, 0.5
 
     f = zeros(nvx, nvy, nx)
 
-    x = LinRange(xmin, xmax, nx+1)[1:(end - 1)]
+    mesh = Mesh1D2V(xmin, xmax, nx, vxmin, vxmax, nvx, vymin, vymax, nvy)
+
+    x = mesh.x
     kx = 2π / (xmax - xmin) * collect(fftfreq(nx, nx))
-    vx = LinRange(vxmin, vxmax, nvx+1)[1:(end - 1)]
-    vy = LinRange(vymin, vymax, nvy+1)[1:(end - 1)]
+    vx = mesh.vx
+    vy = mesh.vy
 
     α = 0.0001
     σ1 = 0.02/sqrt(2)
@@ -40,8 +42,8 @@ function vm_lie_2(tmax)
     Ex = zeros(nx)
     Ey = zeros(nx)
     B = zeros(nx)
-    dvx = vx[2] - vx[1]
-    dvy = vy[2] - vy[1]
+    dvx = mesh.dvx
+    dvy = mesh.dvy
     rho = vec(sum(f; dims=(1, 2))) * dvx * dvy
     Ex .= poisson(rho, x, kx)
     B = α * cos.(kinit .* x)
@@ -49,7 +51,7 @@ function vm_lie_2(tmax)
     kvx = collect(2π / (vxmax - vxmin) * fftfreq(nvx, nvx))
     kvy = collect(2π / (vymax - vymin) * fftfreq(nvy, nvy))
 
-    dx = x[2] - x[1]
+    dx = mesh.dx
     rx=sqrt(0.5*sum(Ex .* Ex)*dx+1.0)
     ry=sqrt(0.5*sum(Ey .* Ey)*dx+1.0)
 
@@ -58,22 +60,22 @@ function vm_lie_2(tmax)
     t = 0.0
     iter = 0
 
-    diags = [compute_diag(f, Ex, Ey, B, vx, vy, rx, ry, dx, t)]
+    diags = [compute_diag(f, Ex, Ey, B, rx, ry, mesh, t)]
 
     while abs(t - tmax) > 1e-10
         iter += 1
         t += dt
 
-        hf!(f, Ex, Ey, dt, vx, vy, kx)
+        hf!(f, Ex, Ey, dt, mesh, kx)
         updateg!(gx, gy, Ex, Ey, rx, ry)
 
-        rx, ry = HE2!(f, Ex, Ey, gx, gy, rx, ry, vx, vy, dx, dt)
+        rx, ry = HE2!(f, Ex, Ey, gx, gy, rx, ry, mesh, dt)
         updateg!(gx, gy, Ex, Ey, rx, ry)
 
-        rx, ry = HB2!(f, Ey, B, gx, gy, rx, ry, vx, vy, kx, kvx, kvy, dx, dt)
+        rx, ry = HB2!(f, Ey, B, gx, gy, rx, ry, kx, kvx, kvy, mesh, dt)
         updateg!(gx, gy, Ex, Ey, rx, ry)
 
-        push!(diags, compute_diag(f, Ex, Ey, B, vx, vy, rx, ry, dx, t))
+        push!(diags, compute_diag(f, Ex, Ey, B, rx, ry, mesh, t))
     end
 
     return vcat(DataFrame.(diags)...)

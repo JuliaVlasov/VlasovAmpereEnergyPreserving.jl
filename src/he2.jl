@@ -5,12 +5,13 @@ drx/dt=-0.5*int (gx Jx) dx
 dry/dt=-0.5*int (gy Jy) dx
 dEx/dt=dEy/dt=dB/dt =0
 """
-function HE2!(f, Ex, Ey, gx, gy, rx, ry, vx, vy, dx, dt)
+function HE2!(f, Ex, Ey, gx, gy, rx, ry, mesh, dt)
 
     nvx, nvy, nx = size(f)
 
-    dvx = vx[2] - vx[1]
-    dvy = vy[2] - vy[1]
+    dx = mesh.dx
+    dvx = mesh.dvx
+    dvy = mesh.dvy
 
     Jx = zeros(nx)
     Jy = zeros(nx)
@@ -21,8 +22,8 @@ function HE2!(f, Ex, Ey, gx, gy, rx, ry, vx, vy, dx, dt)
         Jy[i]=0.0
         rho[i]=0.0;
         for j in 1:nvx, k in 1:nvy
-            Jx[i] += vx[j]*f[j, k, i]
-            Jy[i] += vy[k]*f[j, k, i]
+            Jx[i] += mesh.vx[j]*f[j, k, i]
+            Jy[i] += mesh.vy[k]*f[j, k, i]
             rho[i] += f[j, k, i]
         end
     end
@@ -45,7 +46,7 @@ function HE2!(f, Ex, Ey, gx, gy, rx, ry, vx, vy, dx, dt)
 
     fvx = zeros(nvx)
     for j in 1:nvy, i in 1:nx
-        fvx = f[:, j, i]
+        fvx .= f[:, j, i]
         fvx .= semilag_d2(fvx, Exnew[i], dt, dvx)
         f[:, j, i] .= fvx
     end

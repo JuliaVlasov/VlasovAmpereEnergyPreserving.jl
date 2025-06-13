@@ -6,17 +6,18 @@ drx/dt=-0.5*int (gx Jx) dx
 dry/dt=-0.5*int (gy (Jy+dB/dx)) dx
 dEx/dt=dEy/dt=0
 """
-function HE!(f, rx, ry, B, vx, vy, gx, gy, kx, dx, dt)
+function HE!(f, rx, ry, B, gx, gy, kx, mesh, dt)
     nvx, nvy, nx = size(f)
 
-    dvx = vx[2]-vx[1]
-    dvy = vy[2]-vy[1]
+    dx = mesh.dx
+    dvx = mesh.dvx
+    dvy = mesh.dvy
     Jx = zeros(nx)
     Jy = zeros(nx)
     rho = zeros(nx)
 
-    Jx = vec(sum(vx .* f; dims=[1, 2])) .* dvx .* dvy
-    Jy = vec(sum(vy' .* f; dims=[1, 2])) .* dvx .* dvy
+    Jx = vec(sum(mesh.vx .* f; dims=[1, 2])) .* dvx .* dvy
+    Jy = vec(sum(mesh.vy' .* f; dims=[1, 2])) .* dvx .* dvy
     rho = vec(sum(f; dims=[1, 2])) .* dvx .* dvy
 
     Jxnpdemi = Jx + 0.25dt * rx * gx .* rho
@@ -48,13 +49,13 @@ function HE!(f, rx, ry, B, vx, vy, gx, gy, kx, dx, dt)
 
     fvx = zeros(nvx)
     for j in axes(f, 2), i in eachindex(Exnew)
-        fvx = f[:, j, i]
+        fvx .= f[:, j, i]
         f[:, j, i] .= semilag_d2(fvx, Exnew[i], dt, dvx)
     end
 
     fvy = zeros(nvy)
     for j in axes(f, 1), i in eachindex(Exnew)
-        fvy = f[j, :, i]
+        fvy .= f[j, :, i]
         f[j, :, i] .= semilag_d2(fvy, Eynew[i], dt, dvy)
     end
 

@@ -64,10 +64,10 @@ function vm_lie_1(tmax)
         hf!(f, Ex, Ey, dt, mesh, kx)
         updateg!(gx, gy, Ex, Ey, rx, ry)
 
-        rx, ry = HE!(f, rx, ry, B, vx, vy, gx, gy, kx, dx, dt)
+        rx, ry = HE!(f, rx, ry, B, gx, gy, kx, mesh, dt)
         updateg!(gx, gy, Ex, Ey, rx, ry)
 
-        HB!(f, Ey, B, vx, vy, kx, kvx, kvy, dt)
+        HB!(f, Ey, B, mesh, kx, kvx, kvy, dt)
         updateg!(gx, gy, Ex, Ey, rx, ry)
 
         iter += 1
