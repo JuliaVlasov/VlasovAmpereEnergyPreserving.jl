@@ -1,0 +1,5 @@
+/Manifest*.toml
+*.swp
+/examples/.ipynb_checkpoints
+*.ipynb
+*.gif
