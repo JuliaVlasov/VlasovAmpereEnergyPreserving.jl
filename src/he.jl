@@ -1,3 +1,79 @@
+"""
+solve the subsystem 
+df/dt + rxgx df/dvx + rygydf/dvy = 0
+dB/dt = -d(ry gy)/dx 
+drx/dt=-0.5*int (gx Jx) dx
+dry/dt=-0.5*int (gy (Jy+dB/dx)) dx
+dEx/dt=dEy/dt=0
+"""
+function HE!(fn, rx, ry, B, vx, vy, gx, gy, kx, dx, dt)
+
+
+    nvx, nvy, nx = size(fn)
+
+    dvx = vx[2]-vx[1]
+    dvy = vy[2]-vy[1]
+    nx = length(B)
+    Jx = zeros(nx)
+    Jy = zeros(nx)
+    rho = zeros(nx)
+
+    for i = 1:nx
+        Jx[i]=0.0
+        Jy[i]=0.0
+        rho[i]=0.0
+        for j in axes(fn, 1), k in axes(fn, 2)
+            Jx[i] += vx[j]*fn[j, k, i]
+            Jy[i] += vy[k]*fn[j, k, i]
+            rho[i] += fn[j, k, i]
+        end
+    end
+
+    Jx=Jx*dvx*dvy;
+    Jy=Jy*dvx*dvy;
+    rho=rho*dvx*dvy;
+
+    Jxnpdemi=Jx+0.25*dt*rx*gx .* rho;
+    denom=1+(dt*dt/8)*sum(rho .* gx .^ 2)*dx;
+    rxnp1=(rx-0.5*dt*sum(gx .* Jx)*dx-(dt*dt/8)*rx*sum(rho .* gx .^ 2)*dx)/denom;
+    Exnew=0.5*(rxnp1+rx)*gx;
+
+    Jynpdemi=Jy+0.25*dt*ry*gy .* rho;
+    dxgy=real(ifft(1im * kx .* fft(gy)));
+    dx2gy=real(ifft(-kx .* kx .* fft(gy)));
+    dxB=real(ifft(1im * kx .* fft(B)));
+    denom=1+(dt*dt/8)*sum(rho .* gy .^ 2)*dx+(dt*dt/8)*sum(dxgy .* dxgy)*dx;
+    rynp1=(
+        ry-0.5*dt*sum(
+            Jy .* gy,
+        )*dx+0.5*dt*sum(
+            B .* dxgy,
+        )*dx-(dt*dt/8)*ry*sum(rho .* gy .^ 2)*dx-(dt*dt/8)*ry*sum(dxgy .* dxgy)*dx
+    )/denom;
+
+    Eynew=0.5*(rynp1+ry)*gy;
+
+    faraday=real(ifft(1im*kx .* fft(Eynew)));
+
+    B=B-dt*faraday;
+
+    for j in axes(fn, 2), i in eachindex(Exnew)
+        ft = fn[:, j, i]
+        u1 = semilag_d2(ft, nvx, Exnew[i], dt, dvx)
+        fn[:, j, i] .= u1
+    end
+
+
+    for j in axes(fn, 1), i in eachindex(Exnew)
+        ft=fn[j, :, i]
+        u1=semilag_d2(ft, nvy, Eynew[i], dt, dvy)
+        fn[j, :, i] .= u1
+    end
+
+    rxnp1, rynp1
+
+end
+
 #=
 function [ fn,rx,ry,B ] = HE(fn,vx,vy,Vx,Vy,rx,gx,ry,gy,B,Nvx,Nvy,kk,kv,dvx,dvy,Nx,dx,dt,d)
 

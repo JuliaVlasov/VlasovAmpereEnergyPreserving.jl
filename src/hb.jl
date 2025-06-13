@@ -1,3 +1,35 @@
+"""
+solve the subsystem 
+df/dt+B Jv.df/dv=0 (with semi-Lagrangian + exact splitting) 
+dEy/dt=-dB/dx
+dB/dt=drx/dt=dry/dt=0
+"""
+function HB!(f, Ey, B, vx, vy, kx, kvx, kvy, dt)
+
+    nvx, nvy, nx = size(f)
+
+    fn = fft(f, 1)
+    for l = 1:nx, j = 1:nvy, i = 1:nvx
+        fn[i, j, l]=exp(-1im*kvx[i]*vy[j]*tan(B[l]*dt/2)) * fn[i, j, l]
+    end
+    fn .= ifft(fn, 1)
+
+    fn .= fft(fn, 2)
+    for l = 1:nx, i = 1:nvx, j = 1:nvy
+        fn[i, j, l]=exp(1im*kvy[j]*vx[i]*sin(B[l]*dt)) * fn[i, j, l];
+    end
+    fn .= ifft(fn, 2)
+
+    fn .= fft(fn, 1)
+    for l = 1:nx, j = 1:nvy, i = 1:nvx
+        fn[i, j, l]=exp(-1im*kvx[i]*vy[j]*tan(B[l]*dt/2)) * fn[i, j, l]
+    end
+    fn .= ifft(fn, 1)
+
+    amperey=real(ifft(1im * kx .* fft(B)))
+    Ey .= Ey .- dt .* amperey
+end
+
 #=
 function [ fn,Ey ] = HB(fn,Ey,B,vx,vy,kk,kkvx,kkvy,Nvx,Nvy,dvx,dvy,Nx,dt,d,meth)
 
@@ -77,10 +109,6 @@ end
 end
 
 =#
-
-using FFTW
-using LinearAlgebra
-using LoopVectorization
 
 function HB(
     fn::Array{ComplexF64,3},
