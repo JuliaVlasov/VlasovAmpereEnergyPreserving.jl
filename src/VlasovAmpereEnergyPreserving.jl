@@ -1,5 +1,6 @@
 module VlasovAmpereEnergyPreserving
 
+include("mesh.jl")
 include("hf.jl")
 include("hf_lapenta.jl")
 include("he_lapenta.jl")
