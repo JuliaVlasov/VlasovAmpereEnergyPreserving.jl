@@ -29,9 +29,13 @@ end
 
 export compute_diag
 
-function compute_diag(f, Ex, Ey, B, vx, vy, rx, ry, dx, t)
-    dvx=vx[2]-vx[1]
-    dvy=vy[2]-vy[1]
+function compute_diag(f, Ex, Ey, B, rx, ry, mesh::Mesh1D2V, t)
+
+    vx = mesh.vx
+    vy = mesh.vy
+    dx = mesh.dx
+    dvx=mesh.dvx
+    dvy=mesh.dvy
     dxv=dx*dvx*dvy
     kin=0
 
