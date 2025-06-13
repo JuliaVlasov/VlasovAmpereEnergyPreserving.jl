@@ -1,3 +1,63 @@
+"""
+solve the subsystem 
+
+    df/dt+B Jv.df/dv=0 (with semi-Lagrangian + exact splitting) 
+    dEy/dt = -dB/dx
+    dB/dt  = -dEy/dx 
+    dEx/dt = 0
+
+"""
+function HB_lapenta2d!(f, Ex, Ey, B, vx, vy, kx, kvx, kvy, dt)
+
+    Eyf = fft(Ey)
+    Bf = fft(B)
+    Eynp1f = similar(Eyf)
+    Bnp1f = similar(Bf)
+
+    for i in eachindex(kx)
+        AA=[
+            1 0.5dt * 1im * kx[i];
+            0.5dt * 1im * kx[i] 1
+        ]
+
+        Un = [
+            Eyf[i] - 0.5dt * 1im * kx[i] * Bf[i]
+            Bf[i] - 0.5dt * 1im * kx[i] * Eyf[i]
+        ]
+        U = AA \ Un
+        Eynp1f[i]=U[1]
+        Bnp1f[i]=U[2]
+    end
+
+    Eynp1=real(ifft(Eynp1f))
+    Bnp1=real(ifft(Bnp1f))
+
+    Bdemi = 0.5 * (Bnp1 + B)
+
+    fn = fft(f, 1)
+    for l in axes(fn, 3), j in axes(fn, 2), i in axes(fn, 1)
+        fn[i, j, l] = exp(-1im * kvx[i] * vy[j] * tan(Bdemi[l]*dt/2)) * fn[i, j, l]
+    end
+    fn = ifft(fn, 1)
+
+    fn = fft(fn, 2)
+    for l in axes(fn, 3), j in axes(fn, 2), i in axes(fn, 1)
+        fn[i, j, l] = exp(1im * kvy[j] * vx[i] * sin(Bdemi[l]*dt)) * fn[i, j, l]
+    end
+    fn = ifft(fn, 2)
+
+    fn = fft(fn, 1)
+    for l in axes(fn, 3), j in axes(fn, 2), i in axes(fn, 1)
+        fn[i, j, l] = exp(- 1im * kvx[i] * vy[j] * tan(Bdemi[l]*dt/2)) * fn[i, j, l]
+    end
+    fn = ifft(fn, 1)
+
+    Ey .= Eynp1
+    B .= Bnp1
+    f .= real(fn)
+
+end
+
 #=
 function [ fn,Ex,Ey,B ] = HB_lapenta2d(fn,Ex,Ey,B,vx,vy,kk,kkvx,kkvy,Nvx,Nvy,dvx,dvy,Nx,dt,dx,d,meth)
 

@@ -10,5 +10,8 @@ include("updateg.jl")
 include("compute_diag.jl")
 include("hb.jl")
 include("he.jl")
+include("hf_lapenta2d.jl")
+include("he_lapenta2d.jl")
+include("hb_lapenta2d.jl")
 
 end

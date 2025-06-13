@@ -1,3 +1,16 @@
+function hf_lapenta2d!(f, dt, vx, kx)
+
+    for j in axes(f, 2)
+
+        fs = fft(f[:, j, :], 1)
+        fs .*= exp.(-1im * vx .* kx' * dt)
+        fs .= ifft(fs, 1)
+
+        f[:, j, :] .= real(fs)
+    end
+
+end
+
 #=
 function [ f ] = hf_lapenta2d(dt,Nvy,Vx,kx,f)
 

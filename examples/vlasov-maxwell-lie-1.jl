@@ -2,6 +2,8 @@ using FFTW
 import VlasovAmpereEnergyPreserving: poisson, updateg, semilag_d2, compute_diag
 import VlasovAmpereEnergyPreserving: hf!, HE!, HB!
 import VlasovAmpereEnergyPreserving: updateg, updateg!
+using Plots
+using DataFrames
 
 function vm_lie_1(tmax)
 
@@ -54,7 +56,7 @@ function vm_lie_1(tmax)
     t = 0.0
     iter = 0
 
-    diags = [compute_diag(f, B, Ey, Ex, vx, vy, rx, ry, dx, t)]
+    diags = [compute_diag(f, Ex, Ey, B, vx, vy, rx, ry, dx, t)]
 
     while abs(t - tmax) > 1e-10
         iter += 1
@@ -73,16 +75,13 @@ function vm_lie_1(tmax)
 
     end
 
-    return diags
+    return vcat(DataFrame.(diags)...)
 
 end
 
-using Plots
-using DataFrames
 
 # Run the simulation
 tmax = 100.0
 @time lie1 = vm_lie_1(tmax)
-data = vcat(DataFrame.(lie1)...)
-plot(data[!,"time"], data[!, "TotalEnergy1"])
+plot(lie1[!,"time"], lie1[!, "TotalEnergy1"])
 
