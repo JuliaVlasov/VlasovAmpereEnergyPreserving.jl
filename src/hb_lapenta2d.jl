@@ -7,7 +7,10 @@ solve the subsystem
     dEx/dt = 0
 
 """
-function HB_lapenta2d!(f, Ex, Ey, B, vx, vy, kx, kvx, kvy, dt)
+function HB_lapenta2d!(f, Ex, Ey, B, kx, kvx, kvy, mesh::Mesh1D2V, dt)
+
+    hdt = 0.5dt
+
     Eyf = fft(Ey)
     Bf = fft(B)
     Eynp1f = similar(Eyf)
@@ -32,19 +35,19 @@ function HB_lapenta2d!(f, Ex, Ey, B, vx, vy, kx, kvx, kvy, dt)
     ft = complex(f)
     ft .= fft(f, 1)
     for l in axes(ft, 3), j in axes(ft, 2), i in axes(ft, 1)
-        ft[i, j, l] = exp(-1im * kvx[i] * vy[j] * tan(Bdemi[l]*dt/2)) * ft[i, j, l]
+        ft[i, j, l] = exp(-1im * kvx[i] * mesh.vy[j] * tan(Bdemi[l]*hdt)) * ft[i, j, l]
     end
     ft .= ifft(ft, 1)
 
     ft .= fft(ft, 2)
     for l in axes(ft, 3), j in axes(ft, 2), i in axes(ft, 1)
-        ft[i, j, l] = exp(1im * kvy[j] * vx[i] * sin(Bdemi[l]*dt)) * ft[i, j, l]
+        ft[i, j, l] = exp(1im * kvy[j] * mesh.vx[i] * sin(Bdemi[l]*dt)) * ft[i, j, l]
     end
     ft .= ifft(ft, 2)
 
     ft .= fft(ft, 1)
     for l in axes(ft, 3), j in axes(ft, 2), i in axes(ft, 1)
-        ft[i, j, l] = exp(- 1im * kvx[i] * vy[j] * tan(Bdemi[l]*dt/2)) * ft[i, j, l]
+        ft[i, j, l] = exp(- 1im * kvx[i] * mesh.vy[j] * tan(Bdemi[l]*hdt)) * ft[i, j, l]
     end
     ft .= ifft(ft, 1)
 
