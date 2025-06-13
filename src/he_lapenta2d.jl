@@ -9,19 +9,20 @@ math```
 ```
 
 """
-function HE_lapenta2d!(f, Ex, Ey, vx, vy, dt)
+function HE_lapenta2d!(f, Ex, Ey, mesh::Mesh1D2V, dt)
+
     nvx, nvy, nx = size(f)
 
-    dvx = vx[2] - vx[1]
-    dvy = vy[2] - vy[1]
+    dvx = mesh.dvx
+    dvy = mesh.dvy
 
     Jx = zeros(nx)
     Jy = zeros(nx)
     rho = zeros(nx)
 
     for ix in axes(f, 3), ivy in axes(f, 2), ivx in axes(f, 1)
-        Jx[ix] += vx[ivx] * f[ivx, ivy, ix]
-        Jy[ix] += vy[ivy] * f[ivx, ivy, ix]
+        Jx[ix] += mesh.vx[ivx] * f[ivx, ivy, ix]
+        Jy[ix] += mesh.vy[ivy] * f[ivx, ivy, ix]
         rho[ix] += f[ivx, ivy, ix]
     end
 
