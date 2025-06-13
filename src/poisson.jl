@@ -3,10 +3,9 @@ using FFTW
 export poisson
 
 function poisson(rho, x, kx)
-
     nx = length(rho)
     Ef = fft(rho)
-    for i = 2:nx
+    for i in 2:nx
         Ef[i] = Ef[i] / (1im * kx[i])
     end
 
@@ -16,10 +15,9 @@ function poisson(rho, x, kx)
 end
 
 function poisson!(Ex, rho, kx)
-
     nx = length(Ex)
     Ef = fft(rho)
-    for i = 2:nx
+    for i in 2:nx
         Ef[i] = Ef[i] / (1im * kx[i])
     end
     Ef[1] = 0

@@ -22,8 +22,8 @@ export HE_lapenta
 
 function HE_lapenta(fn, V, E, Nv, kv, dv, Nx, dx, dt, d)
     # Calculate current and charge density
-    J = vec(sum(V .* fn, dims = 1) .* dv)
-    rho = vec(sum(fn, dims = 1) .* dv)
+    J = vec(sum(V .* fn; dims=1) .* dv)
+    rho = vec(sum(fn; dims=1) .* dv)
 
     # Update electric field
     Enew = (1 ./ (1 .+ (dt^2 .* rho ./ 4))) .* E .- (dt ./ (2 .+ (dt^2 .* rho ./ 2))) .* J
@@ -37,7 +37,7 @@ function HE_lapenta(fn, V, E, Nv, kv, dv, Nx, dx, dt, d)
     fn1 = similar(fn)
 
     # Apply semi-Lagrangian method to each spatial point
-    for i = 1:Nx
+    for i in 1:Nx
         ft = fn[:, i]'  # Transpose to row vector
         u1 = semilag(ft, Nv, Enew[i], dt, dv, d)
         fn1[:, i] = u1
@@ -45,7 +45,6 @@ function HE_lapenta(fn, V, E, Nv, kv, dv, Nx, dx, dt, d)
 
     return fn1, Enp1
 end
-
 
 function HE_lapenta(
     fn::Matrix{T},
@@ -65,8 +64,8 @@ function HE_lapenta(
     Enp1 = similar(E)
 
     # Calculate current and charge density (using views to avoid allocations)
-    J = @views sum(V .* fn, dims = 1) .* dv
-    rho = @views sum(fn, dims = 1) .* dv
+    J = @views sum(V .* fn, dims=1) .* dv
+    rho = @views sum(fn, dims=1) .* dv
 
     # Compute intermediate terms (using fused broadcasting)
     dt2_rho4 = (dt^2) .* rho ./ 4
@@ -80,7 +79,7 @@ function HE_lapenta(
     @. Enp1 = E - dt * Jnpdemi
 
     # Semi-Lagrangian step (multi-threaded)
-    @inbounds Threads.@threads for i = 1:Nx
+    @inbounds Threads.@threads for i in 1:Nx
         ft = @view fn[:, i]  # Column vector view
         u1 = semilag(ft, Nv, Enew[i], dt, dv, d)
         fn1[:, i] = u1

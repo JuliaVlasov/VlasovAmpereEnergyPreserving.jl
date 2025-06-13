@@ -6,10 +6,7 @@ using DataFrames
 using Plots
 import VlasovAmpereEnergyPreserving: hf_lapenta2d!, HE_lapenta2d!, HB_lapenta2d!
 
-
-
 # Hongtao-Lapenta splitting
-
 
 function lapenta_2d(tmax)
     # Computational domain parameters
@@ -26,14 +23,14 @@ function lapenta_2d(tmax)
 
     xmin, xmax = 0, 2π / kinit
     dx = (xmax-xmin) / nx
-    x = LinRange(xmin, xmax, nx+1)[1:(end-1)]
+    x = LinRange(xmin, xmax, nx+1)[1:(end - 1)]
 
-    kx = 2π/(xmax-xmin) * fftfreq(nx, nx) |> collect
+    kx = collect(2π/(xmax-xmin) * fftfreq(nx, nx))
 
     dvx = (vxmax - vxmin) / nvx
     dvy = (vymax - vymin) / nvy
-    vx = LinRange(vxmin, vxmax, nvx+1)[1:(end-1)]
-    vy = LinRange(vymin, vymax, nvy+1)[1:(end-1)]
+    vx = LinRange(vxmin, vxmax, nvx+1)[1:(end - 1)]
+    vy = LinRange(vymin, vymax, nvy+1)[1:(end - 1)]
 
     f = zeros(nvx, nvy, nx)
 
@@ -49,7 +46,7 @@ function lapenta_2d(tmax)
     Ex = zeros(nx)
     Ey = zeros(nx)
     B = zeros(nx)
-    rho = vec(sum(f, dims = (1, 2))) * dvx * dvy
+    rho = vec(sum(f; dims=(1, 2))) * dvx * dvy
     poisson!(Ex, rho, kx)
     B = α * cos.(kinit .* x)
 
@@ -57,8 +54,8 @@ function lapenta_2d(tmax)
     ry = sqrt(0.5 * sum(Ey .^ 2) * dx + 1.0)
 
     # Useful arrays
-    kvx = 2π / (vxmax - vxmin) * fftfreq(nvx, nvx) |> collect
-    kvy = 2π / (vymax - vymin) * fftfreq(nvy, nvy) |> collect
+    kvx = collect(2π / (vxmax - vxmin) * fftfreq(nvx, nvx))
+    kvy = collect(2π / (vymax - vymin) * fftfreq(nvy, nvy))
 
     time = 0.0
     iter = 0
@@ -66,7 +63,6 @@ function lapenta_2d(tmax)
     diags = [compute_diag(f, Ex, Ey, B, vx, vy, rx, ry, dx, time)]
 
     while abs(time - tmax) > 1e-10
-
         hf_lapenta2d!(f, vx, kx, dt)
         HE_lapenta2d!(f, Ex, Ey, vx, vy, dt)
         HB_lapenta2d!(f, Ex, Ey, B, vx, vy, kx, kvx, kvy, dt)
@@ -75,15 +71,12 @@ function lapenta_2d(tmax)
         time += dt
 
         push!(diags, compute_diag(f, Ex, Ey, B, vx, vy, rx, ry, dx, time))
-
     end
 
     return vcat(DataFrame.(diags)...)
-
 end
-
 
 tmax = 10.0
 @time lapenta = lapenta_2d(tmax)
-plot(lapenta[!, "time"], lapenta[!, "ExNorm"], yscale = :log10)
-plot!(lapenta[!, "time"][2:end], lapenta[!, "EyNorm"][2:end], yscale=:log10)
+plot(lapenta[!, "time"], lapenta[!, "ExNorm"]; yscale=:log10)
+plot!(lapenta[!, "time"][2:end], lapenta[!, "EyNorm"][2:end]; yscale=:log10)

@@ -1,7 +1,6 @@
 #=
 function [ f,E ] = hf_lapenta(dt,dv,V,kx,k,f,E)
 
-
     f=real(ifft(exp(-sqrt(-1)*V'.*kx*dt).*fft(f')))';
 
 end

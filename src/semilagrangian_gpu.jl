@@ -17,9 +17,9 @@ function lagrange_interpolation_kernel(f, f_new, E, dt, dv, d, Nv)
         f_vals = @cuStaticSharedMem(Float64, (2d+2,))
 
         # Determine interpolation stencil indices
-        for ii = (-d):(d+1)
+        for ii in (-d):(d + 1)
             if threadIdx().x == 1
-                j_ind[ii+d+1] = mod1(j + ii, Nv)
+                j_ind[ii + d + 1] = mod1(j + ii, Nv)
             end
         end
         sync_threads()
@@ -34,11 +34,11 @@ function lagrange_interpolation_kernel(f, f_new, E, dt, dv, d, Nv)
         L = 1.0
         f_new_i = 0.0
 
-        @fastmath for ii = (-d):(d+1)
+        @fastmath for ii in (-d):(d + 1)
             term = 1.0
             denom = 1.0
 
-            for jj = (-d):(d+1)
+            for jj in (-d):(d + 1)
                 if ii ≠ jj
                     term *= (α - jj)
                     denom *= (ii - jj)
@@ -46,7 +46,7 @@ function lagrange_interpolation_kernel(f, f_new, E, dt, dv, d, Nv)
             end
 
             L = term / denom
-            f_new_i += L * f_vals[ii+d+1]
+            f_new_i += L * f_vals[ii + d + 1]
         end
 
         f_new[i] = f_new_i
@@ -63,13 +63,7 @@ function semilag_gpu(f::CuArray{Float64}, E::Float64, dt::Float64, dv::Float64, 
     blocks = cld(Nv, threads)
 
     @cuda threads=threads blocks=blocks lagrange_interpolation_kernel(
-        f,
-        f_new,
-        E,
-        dt,
-        dv,
-        d,
-        Nv,
+        f, f_new, E, dt, dv, d, Nv
     )
 
     return f_new
@@ -104,21 +98,17 @@ semilag(f, Nv, E, dt, dv, d);
 @time f_new = semilag(f, Nv, E, dt, dv, d);
 
 function semilag_multi_gpu(
-    fs::Vector{Vector{Float64}},
-    Es::Vector{Float64},
-    dt::Float64,
-    dv::Float64,
-    d::Int,
+    fs::Vector{Vector{Float64}}, Es::Vector{Float64}, dt::Float64, dv::Float64, d::Int
 )
     # Create CUDA streams
-    streams = [CuStream() for _ = 1:length(fs)]
+    streams = [CuStream() for _ in 1:length(fs)]
 
     # Allocate GPU arrays
     f_gpus = [CuArray(f) for f in fs]
     f_news = [similar(f_gpu) for f_gpu in f_gpus]
 
     # Launch kernels in parallel streams
-    for i = 1:length(fs)
+    for i in 1:length(fs)
         Nv = length(fs[i])
         threads = min(256, Nv)
         blocks = cld(Nv, threads)

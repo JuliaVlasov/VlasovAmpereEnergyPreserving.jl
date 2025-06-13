@@ -10,7 +10,6 @@ math```
 
 """
 function HE_lapenta2d!(f, Ex, Ey, vx, vy, dt)
-
     nvx, nvy, nx = size(f)
 
     dvx = vx[2] - vx[1]
@@ -52,8 +51,6 @@ function HE_lapenta2d!(f, Ex, Ey, vx, vy, dt)
 
     Ex .= 2 .* Exnew .- Ex
     Ey .= 2 .* Eynew .- Ey
-
-
 end
 #=
 function [ fn,Ex,Ey ] = HE_lapenta2d(fn,vx,vy,Ex,Ey,Nvx,Nvy,dvx,dvy,Nx,dx,dt,d)
@@ -87,7 +84,6 @@ for j=1:Nvy
     end
 end
 
-
 for j=1:Nvx
     for i=1:Nx
         ft=fn(j,:,i);
@@ -98,8 +94,6 @@ end
 
 Ex=2*Exnew-Ex;
 Ey=2*Eynew-Ey;
-
-
 
 end
 

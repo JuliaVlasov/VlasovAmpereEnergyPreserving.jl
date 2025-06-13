@@ -31,8 +31,8 @@ function HE_lapenta!(
     # Pre-allocate outputs
     fn1 = similar(f)
 
-    J = vec(sum(v .* f, dims = 1)) .* dv
-    rho = vec(sum(f, dims = 1)) .* dv
+    J = vec(sum(v .* f; dims=1)) .* dv
+    rho = vec(sum(f; dims=1)) .* dv
 
     dt2_rho4 = (dt^2) .* rho ./ 4
     dt2_rho2 = dt2_rho4 .* 2
@@ -50,19 +50,16 @@ function HE_lapenta!(
         f[:, i] .= u1
     end
 
-
     E .= Enp1
-
 end
 
 # +
 function run(nx, nv, tmax, dt, α)
-
     kk = 0.5
     xmin = 0
     xmax = 2π/kk
     dx = (xmax - xmin)/nx
-    x = LinRange(xmin, xmax, nx+1)[1:(end-1)] |> collect
+    x = collect(LinRange(xmin, xmax, nx+1)[1:(end - 1)])
 
     # Wavenumbers
     kx = collect(2π/(xmax-xmin) .* fftfreq(nx, nx))
@@ -71,7 +68,7 @@ function run(nx, nv, tmax, dt, α)
     vmin = -14
     vmax = 14
     dv = (vmax - vmin)/nv
-    v = LinRange(vmin, vmax, nv+1)[1:(end-1)] |> collect
+    v = collect(LinRange(vmin, vmax, nv+1)[1:(end - 1)])
     kv = collect(2π/(vmax-vmin) .* fftfreq(nv, nv))
 
     # Time mesh
@@ -82,11 +79,10 @@ function run(nx, nv, tmax, dt, α)
     # Initial condition
     feq = 1/√(2π) * exp.(-0.5 * v .^ 2)
 
-
     mass_hot = sum(feq) * dv
     feq = feq / mass_hot
     fn = feq .* (1 .+ α * cos.(kk * x'))
-    rho = vec(sum(fn, dims = 1) * dv .- 1)
+    rho = vec(sum(fn; dims=1) * dv .- 1)
     E = poisson(rho, x, kx)
     r = √(0.5 * sum(E .^ 2) * dx)
     g = E / r
@@ -94,23 +90,22 @@ function run(nx, nv, tmax, dt, α)
     # Diagnostics
     Ef = fft(E)
     modes = abs.(Ef[2:10])
-    enelec = Float64[0.5*(dx*sum(E .^ 2))]
-    eelec = Float64[0.5*sum(E .^ 2)*dx]
+    enelec = Float64[0.5 * (dx * sum(E .^ 2))]
+    eelec = Float64[0.5 * sum(E .^ 2) * dx]
     r_history = Float64[r]
-    mom = Float64[sum(v .* fn)*dv*dx]
-    ekin = Float64[0.5*sum(v .^ 2 .* fn)*dv*dx]
-    etot = Float64[0.5*sum(v .^ 2 .* fn)*dv*dx+0.5*sum(E .^ 2)*dx]
+    mom = Float64[sum(v .* fn) * dv * dx]
+    ekin = Float64[0.5 * sum(v .^ 2 .* fn) * dv * dx]
+    etot = Float64[0.5 * sum(v .^ 2 .* fn) * dv * dx + 0.5 * sum(E .^ 2) * dx]
     diff_sav = Float64[0]
     diff_poisson = Float64[0]
     d = 2
-    rhoh = vec(sum(fn, dims = 1)) .* dv
+    rhoh = vec(sum(fn; dims=1)) .* dv
 
     fn = feq .* (1 .+ 0.001 * cos.(kk * x'))
     r = √(0.5 * sum(E .^ 2) * dx)
     g = E / r
 
     while abs(t) < abs(tmax)
-
         iter += 1
         t += dt
         mod(iter, 100) == 0 && println(t)
@@ -122,7 +117,7 @@ function run(nx, nv, tmax, dt, α)
         push!(tabt, iter * dt)
         push!(enelec, 0.5 * (dx * sum(E .^ 2)))
         Ef = fft(E)
-        rho = vec(sum(fn, dims = 1)) * dv .- 1
+        rho = vec(sum(fn; dims=1)) * dv .- 1
         Ep = poisson(rho, x, kx)
         push!(diff_poisson, norm(Ep - E))
         modes = abs.(Ef[2:10])
@@ -131,11 +126,9 @@ function run(nx, nv, tmax, dt, α)
         push!(mom, sum(v .* fn) * dv * dx)
         push!(etot, 0.5 * sum(v .^ 2 .* fn) * dv * dx + r^2)
         push!(diff_sav, r - √(0.5 * sum(E .^ 2) * dx))
-
     end
 
     tabt, enelec, etot, diff_poisson, fn
-
 end
 
 # +
@@ -146,10 +139,9 @@ dt = 0.2
 α = 0.001
 @time tabt, enelec, etot, diff_poisson, fn = run(nx, nv, tmax, dt, α)
 
-plot(tabt, enelec, yaxis = :log)
+plot(tabt, enelec; yaxis=:log)
 line, ω, = fit_complex_frequency(tabt, enelec)
-plot!(tabt, line, yaxis = :log)
+plot!(tabt, line; yaxis=:log)
 title!("ω = $(imag(ω))")
-
 
 # -

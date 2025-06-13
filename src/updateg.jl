@@ -21,17 +21,15 @@ end
 =#
 
 function updateg(Ex::AbstractVector, Ey::AbstractVector, rx::Real, ry::Real)
-
     gx = abs(rx) > 1e-12 ? Ex ./ rx : zero(Ex)
     gy = abs(ry) > 1e-12 ? Ey ./ ry : zero(Ex)
 
     return gx, gy
-
 end
 
-function updateg!(gx::Vector{Real}, gy::Vector{Real}, Ex::Vector{Real}, Ey::Vector{Real}, rx::Real, ry::Real)
-
+function updateg!(
+    gx::Vector{T}, gy::Vector{T}, Ex::Vector{T}, Ey::Vector{T}, rx::T, ry::T
+) where {T}
     gx .= abs(rx) > 1e-12 ? Ex ./ rx : zero(Ex)
     gy .= abs(ry) > 1e-12 ? Ey ./ ry : zero(Ex)
-
 end

@@ -1,10 +1,6 @@
 function make_semilag(d::Int)
-
     @inline function specialized_semilag(
-        f::Vector{Float64},
-        E::Float64,
-        dt::Float64,
-        dv::Float64,
+        f::Vector{Float64}, E::Float64, dt::Float64, dv::Float64
     )::Vector{Float64}
         # Initialize output and working arrays
         f_new = similar(f)
@@ -16,7 +12,7 @@ function make_semilag(d::Int)
         Nv = length(f)
 
         # Main loop over velocity grid points
-        @inbounds for i = eachindex(f_new)
+        @inbounds for i in eachindex(f_new)
             # Compute base index and fractional part
             j = floor(Int, i - shift)
             α = (i - shift) - j
@@ -25,44 +21,43 @@ function make_semilag(d::Int)
             j = mod1(j, Nv)
 
             # Determine interpolation stencil indices
-            @simd for ii = (-d):(d+1)
-                j_ind[ii+d+1] = mod1(j + ii, Nv)
+            @simd for ii in (-d):(d + 1)
+                j_ind[ii + d + 1] = mod1(j + ii, Nv)
             end
 
             # Compute Lagrange coefficients
             P = ones(2d+2, 2d+2)
             C = ones(2d+2, 2d+2)
 
-            @fastmath for ii = (-d):(d+1), jj = (-d):(d+1)
+            @fastmath for ii in (-d):(d + 1), jj in (-d):(d + 1)
                 if ii ≠ jj
-                    P[jj+d+1, ii+d+1] = (α - ii)
+                    P[jj + d + 1, ii + d + 1] = (α - ii)
                 end
-                C[jj+d+1, ii+d+1] = (jj - ii)
+                C[jj + d + 1, ii + d + 1] = (jj - ii)
             end
 
             # Compute Lagrange weights
             L = zeros(2d+2)
-            @fastmath for ii = (-d):(d+1)
+            @fastmath for ii in (-d):(d + 1)
                 prodP = 1.0
                 prodC = 1.0
-                for jj = (-d):(d+1)
+                for jj in (-d):(d + 1)
                     if jj ≠ ii
-                        prodP *= P[ii+d+1, jj+d+1]
-                        prodC *= C[ii+d+1, jj+d+1]
+                        prodP *= P[ii + d + 1, jj + d + 1]
+                        prodC *= C[ii + d + 1, jj + d + 1]
                     end
                 end
-                L[ii+d+1] = prodP / prodC
+                L[ii + d + 1] = prodP / prodC
             end
 
             # Apply interpolation
             f_new[i] = zero(Float64)
-            @simd for ii = 1:(2d+2)
+            @simd for ii in 1:(2d + 2)
                 f_new[i] += L[ii] * f[j_ind[ii]]
             end
         end
 
         return f_new
-
     end
 
     return specialized_semilag

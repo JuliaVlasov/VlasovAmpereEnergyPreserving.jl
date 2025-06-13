@@ -8,18 +8,16 @@ solve the subsystem
 
 """
 function HB_lapenta2d!(f, Ex, Ey, B, vx, vy, kx, kvx, kvy, dt)
-
     Eyf = fft(Ey)
     Bf = fft(B)
     Eynp1f = similar(Eyf)
     Bnp1f = similar(Bf)
 
     for i in eachindex(kx)
-
         c = 0.5dt * 1im * kx[i]
 
-        AA=[ 1 c; c 1 ]
-        Un = [ Eyf[i] - c * Bf[i], Bf[i] - c * Eyf[i] ]
+        AA=[1 c; c 1]
+        Un = [Eyf[i] - c * Bf[i], Bf[i] - c * Eyf[i]]
 
         U = AA \ Un
         Eynp1f[i]=U[1]
@@ -27,7 +25,7 @@ function HB_lapenta2d!(f, Ex, Ey, B, vx, vy, kx, kvx, kvy, dt)
     end
 
     Eynp1 = real(ifft(Eynp1f))
-    Bnp1  = real(ifft(Bnp1f))
+    Bnp1 = real(ifft(Bnp1f))
 
     Bdemi = 0.5 * (Bnp1 .+ B)
 
@@ -53,7 +51,6 @@ function HB_lapenta2d!(f, Ex, Ey, B, vx, vy, kx, kvx, kvy, dt)
     Ey .= Eynp1
     B .= Bnp1
     f .= real(ft)
-
 end
 
 #=
@@ -77,8 +74,6 @@ end
 Eynp1=real(ifft(Eynp1f));
 Bnp1=real(ifft(Bnp1f));
 
-
-
 Bdemi=0.5*(Bnp1+B);
 if (meth==0)
     fn=fft(fn,[],1);
@@ -100,7 +95,6 @@ if (meth==0)
       end
     end
     fn=ifft(fn,[],2); 
-
 
     fn=fft(fn,[],1);
     for l=1:Nx
@@ -153,29 +147,11 @@ end
 
 =#
 
-
 using FFTW
 using LinearAlgebra
 
 function HB_lapenta2d(
-    fn,
-    Ex,
-    Ey,
-    B,
-    vx,
-    vy,
-    kk,
-    kkvx,
-    kkvy,
-    Nvx,
-    Nvy,
-    dvx,
-    dvy,
-    Nx,
-    dt,
-    dx,
-    d,
-    meth,
+    fn, Ex, Ey, B, vx, vy, kk, kkvx, kkvy, Nvx, Nvy, dvx, dvy, Nx, dt, dx, d, meth
 )
 
     # solve the subsystem
@@ -189,7 +165,7 @@ function HB_lapenta2d(
     Eynp1f = similar(Eyf)
     Bnp1f = similar(Bf)
 
-    for i = 1:Nx
+    for i in 1:Nx
         AA = [1 0.5*dt*im*kk[i]; [0.5*dt*im*kk[i] 1]]
         Un = [Eyf[i] - 0.5*dt*im*kk[i]*Bf[i]; Bf[i] - 0.5*dt*im*kk[i]*Eyf[i]]
         U = AA \ Un
@@ -204,9 +180,9 @@ function HB_lapenta2d(
 
     if meth == 0
         fn = fft(fn, 1)  # FFT along first dimension
-        for l = 1:Nx
-            for j = 1:Nvy
-                for i = 1:Nvx
+        for l in 1:Nx
+            for j in 1:Nvy
+                for i in 1:Nvx
                     fn[i, j, l] = exp(-im*kkvx[i]*vy[j]*tan(Bdemi[l]*dt/2)) * fn[i, j, l]
                 end
             end
@@ -214,9 +190,9 @@ function HB_lapenta2d(
         fn = ifft(fn, 1)
 
         fn = fft(fn, 2)  # FFT along second dimension
-        for l = 1:Nx
-            for i = 1:Nvx
-                for j = 1:Nvy
+        for l in 1:Nx
+            for i in 1:Nvx
+                for j in 1:Nvy
                     fn[i, j, l] = exp(im*kkvy[j]*vx[i]*sin(Bdemi[l]*dt)) * fn[i, j, l]
                 end
             end
@@ -224,9 +200,9 @@ function HB_lapenta2d(
         fn = ifft(fn, 2)
 
         fn = fft(fn, 1)  # FFT along first dimension
-        for l = 1:Nx
-            for j = 1:Nvy
-                for i = 1:Nvx
+        for l in 1:Nx
+            for j in 1:Nvy
+                for i in 1:Nvx
                     fn[i, j, l] = exp(-im*kkvx[i]*vy[j]*tan(Bdemi[l]*dt/2)) * fn[i, j, l]
                 end
             end
@@ -235,8 +211,8 @@ function HB_lapenta2d(
     end
 
     if meth == 1
-        for j = 1:Nvy
-            for i = 1:Nx
+        for j in 1:Nvy
+            for i in 1:Nx
                 ft = fn[:, j, i]'
                 dep = vy[j] * (tan(Bdemi[i]*dt/2)) / (dt/2)
                 u1 = semilag(ft, Nvx, dep, dt/2, dvx, d)
@@ -244,8 +220,8 @@ function HB_lapenta2d(
             end
         end
 
-        for j = 1:Nvx
-            for i = 1:Nx
+        for j in 1:Nvx
+            for i in 1:Nx
                 ft = fn[j, :, i]
                 dep = -vx[j] * (sin(Bdemi[i]*dt)) / dt
                 u1 = semilag(ft, Nvy, dep, dt, dvy, d)
@@ -253,8 +229,8 @@ function HB_lapenta2d(
             end
         end
 
-        for j = 1:Nvy
-            for i = 1:Nx
+        for j in 1:Nvy
+            for i in 1:Nx
                 ft = fn[:, j, i]'
                 dep = vy[j] * (tan(Bdemi[i]*dt/2)) / (dt/2)
                 u1 = semilag(ft, Nvx, dep, dt/2, dvx, d)

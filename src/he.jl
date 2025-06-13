@@ -6,72 +6,59 @@ drx/dt=-0.5*int (gx Jx) dx
 dry/dt=-0.5*int (gy (Jy+dB/dx)) dx
 dEx/dt=dEy/dt=0
 """
-function HE!(fn, rx, ry, B, vx, vy, gx, gy, kx, dx, dt)
-
-
-    nvx, nvy, nx = size(fn)
+function HE!(f, rx, ry, B, vx, vy, gx, gy, kx, dx, dt)
+    nvx, nvy, nx = size(f)
 
     dvx = vx[2]-vx[1]
     dvy = vy[2]-vy[1]
-    nx = length(B)
     Jx = zeros(nx)
     Jy = zeros(nx)
     rho = zeros(nx)
 
-    for i = 1:nx
-        Jx[i]=0.0
-        Jy[i]=0.0
-        rho[i]=0.0
-        for j in axes(fn, 1), k in axes(fn, 2)
-            Jx[i] += vx[j]*fn[j, k, i]
-            Jy[i] += vy[k]*fn[j, k, i]
-            rho[i] += fn[j, k, i]
-        end
-    end
+    Jx = vec(sum(vx .* f; dims=[1, 2])) .* dvx .* dvy
+    Jy = vec(sum(vy' .* f; dims=[1, 2])) .* dvx .* dvy
+    rho = vec(sum(f; dims=[1, 2])) .* dvx .* dvy
 
-    Jx=Jx*dvx*dvy;
-    Jy=Jy*dvx*dvy;
-    rho=rho*dvx*dvy;
+    Jxnpdemi = Jx + 0.25dt * rx * gx .* rho
 
-    Jxnpdemi=Jx+0.25*dt*rx*gx .* rho;
-    denom=1+(dt*dt/8)*sum(rho .* gx .^ 2)*dx;
-    rxnp1=(rx-0.5*dt*sum(gx .* Jx)*dx-(dt*dt/8)*rx*sum(rho .* gx .^ 2)*dx)/denom;
+    denom=1+(dt*dt/8)*sum(rho .* gx .^ 2)*dx
+
+    rxnp1=(rx-0.5dt*sum(gx .* Jx)*dx-(dt*dt/8)*rx*sum(rho .* gx .^ 2)*dx)/denom
+
     Exnew=0.5*(rxnp1+rx)*gx;
 
-    Jynpdemi=Jy+0.25*dt*ry*gy .* rho;
-    dxgy=real(ifft(1im * kx .* fft(gy)));
-    dx2gy=real(ifft(-kx .* kx .* fft(gy)));
-    dxB=real(ifft(1im * kx .* fft(B)));
-    denom=1+(dt*dt/8)*sum(rho .* gy .^ 2)*dx+(dt*dt/8)*sum(dxgy .* dxgy)*dx;
-    rynp1=(
-        ry-0.5*dt*sum(
-            Jy .* gy,
-        )*dx+0.5*dt*sum(
-            B .* dxgy,
-        )*dx-(dt*dt/8)*ry*sum(rho .* gy .^ 2)*dx-(dt*dt/8)*ry*sum(dxgy .* dxgy)*dx
-    )/denom;
+    Jynpdemi = Jy + 0.25dt * ry * gy .* rho
+    dxgy = real(ifft(1im * kx .* fft(gy)))
+    dx2gy = real(ifft(-kx .* kx .* fft(gy)))
+    dxB = real(ifft(1im * kx .* fft(B)))
+    denom = 1+(dt*dt/8)*sum(rho .* gy .^ 2)*dx+(dt*dt/8)*sum(dxgy .* dxgy)*dx
 
-    Eynew=0.5*(rynp1+ry)*gy;
+    rynp1 = ry - 0.5 * dt * sum(Jy .* gy) * dx
+    rynp1 += 0.5dt * sum(B .* dxgy) * dx
+    rynp1 -= (dt*dt/8)*ry*sum(rho .* gy .^ 2)*dx
+    rynp1 -= (dt*dt/8)*ry*sum(dxgy .* dxgy)*dx
 
-    faraday=real(ifft(1im*kx .* fft(Eynew)));
+    rynp1 /= denom
 
-    B=B-dt*faraday;
+    Eynew = 0.5 * (rynp1+ry) * gy
 
-    for j in axes(fn, 2), i in eachindex(Exnew)
-        ft = fn[:, j, i]
-        u1 = semilag_d2(ft, nvx, Exnew[i], dt, dvx)
-        fn[:, j, i] .= u1
+    faraday=real(ifft(1im*kx .* fft(Eynew)))
+
+    B .= B .- dt * faraday
+
+    fvx = zeros(nvx)
+    for j in axes(f, 2), i in eachindex(Exnew)
+        fvx = f[:, j, i]
+        f[:, j, i] .= semilag_d2(fvx, Exnew[i], dt, dvx)
     end
 
-
-    for j in axes(fn, 1), i in eachindex(Exnew)
-        ft=fn[j, :, i]
-        u1=semilag_d2(ft, nvy, Eynew[i], dt, dvy)
-        fn[j, :, i] .= u1
+    fvy = zeros(nvy)
+    for j in axes(f, 1), i in eachindex(Exnew)
+        fvy = f[j, :, i]
+        f[j, :, i] .= semilag_d2(fvy, Eynew[i], dt, dvy)
     end
 
     rxnp1, rynp1
-
 end
 
 #=
@@ -123,7 +110,6 @@ for j=1:Nvy
     end
 end
 
-
 for j=1:Nvx
     for i=1:Nx
         ft=fn(j,:,i);
@@ -134,8 +120,6 @@ end
 
 rx=rxnp1;
 ry=rynp1;
-
-
 
 end
 =#
@@ -169,10 +153,10 @@ function HE(
     rho = zeros(Nx)
 
     # Compute moments (optimized with views and reduced allocations)
-    @inbounds for i = 1:Nx
+    @inbounds for i in 1:Nx
         fn_slice = view(fn,:,:,i)
-        Jx[i] = sum(vx .* sum(fn_slice, dims = 2)) * dvx * dvy
-        Jy[i] = sum(vy' .* sum(fn_slice, dims = 1)) * dvx * dvy
+        Jx[i] = sum(vx .* sum(fn_slice, dims=2)) * dvx * dvy
+        Jy[i] = sum(vy' .* sum(fn_slice, dims=1)) * dvx * dvy
         rho[i] = sum(fn_slice) * dvx * dvy
     end
 
@@ -208,8 +192,8 @@ function HE(
     fn_temp = similar(fn)
 
     # x-direction
-    @inbounds Threads.@threads for j = 1:Nvy
-        for i = 1:Nx
+    @inbounds Threads.@threads for j in 1:Nvy
+        for i in 1:Nx
             ft = view(fn, :, j, i)
             fn_temp[:, j, i] = semilag(ft, Nvx, Exnew[i], dt, dvx, d)
         end
@@ -217,8 +201,8 @@ function HE(
     fn .= fn_temp
 
     # y-direction
-    @inbounds Threads.@threads for j = 1:Nvx
-        for i = 1:Nx
+    @inbounds Threads.@threads for j in 1:Nvx
+        for i in 1:Nx
             ft = view(fn, j, :, i)
             fn_temp[j, :, i] = semilag(ft, Nvy, Eynew[i], dt, dvy, d)
         end

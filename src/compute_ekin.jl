@@ -19,10 +19,7 @@ using CUDA
 using KernelAbstractions
 
 function compute_ekin_gpu(
-    f::CuArray{Float64,3},
-    vx::CuArray{Float64},
-    vy::CuArray{Float64},
-    dx::Float64,
+    f::CuArray{Float64,3}, vx::CuArray{Float64}, vy::CuArray{Float64}, dx::Float64
 )::CuArray{Float64}
     Nx = size(f, 3)
     Nvx = length(vx)
@@ -59,7 +56,7 @@ function compute_ekin(
     vx::AbstractVector{Float64},
     vy::AbstractVector{Float64},
     dx::Float64;
-    device::Symbol = :cpu,
+    device::Symbol=:cpu,
 )
     if device == :gpu && CUDA.functional()
         f_gpu = CuArray(f)
@@ -74,10 +71,7 @@ end
 using Base.Threads
 
 function compute_ekin_cpu(
-    f::Array{Float64,3},
-    vx::Vector{Float64},
-    vy::Vector{Float64},
-    dx::Float64,
+    f::Array{Float64,3}, vx::Vector{Float64}, vy::Vector{Float64}, dx::Float64
 )::Vector{Float64}
     Nx = size(f, 3)
     Nvx = length(vx)
@@ -86,11 +80,11 @@ function compute_ekin_cpu(
     dvy = vy[2] - vy[1]
     kin = zeros(Float64, Nx)
 
-    @threads for k = 1:Nx
+    @threads for k in 1:Nx
         kin_local = 0.0
-        @inbounds for j = 1:(Nvy-1)
+        @inbounds for j in 1:(Nvy - 1)
             vy2 = 0.5 * vy[j]^2
-            for i = 1:(Nvx-1)
+            for i in 1:(Nvx - 1)
                 normv = 0.5 * vx[i]^2 + vy2
                 kin_local += normv * f[i, j, k] * dvx * dvy
             end

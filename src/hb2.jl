@@ -56,7 +56,6 @@ if (meth==0)
     end
     fn=ifft(fn,[],2); 
 
-
     fn=fft(fn,[],1);
     for l=1:Nx
       for j=1:Nvy
@@ -99,7 +98,6 @@ if (meth==1)
     end
 
 end
-
 
 Ey=Eynp1;
 ry=rynp1;

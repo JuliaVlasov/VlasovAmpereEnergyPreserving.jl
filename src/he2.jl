@@ -7,7 +7,6 @@ function [ fn,rx,ry, gx, gy ] = HE2(fn,vx,vy,rx,gx,Ex,ry,gy,Ey,Nvx,Nvy,dvx,dvy,N
 %dry/dt=-0.5*int (gy Jy) dx
 %dEx/dt=dEy/dt=dB/dt =0
 
-
 for i=1:Nx
     Jx(i)=0.;Jy(i)=0.;rho(i)=0.;
     for j=1:Nvx
@@ -42,7 +41,6 @@ for j=1:Nvy
     end
 end
 
-
 for j=1:Nvx
     for i=1:Nx
         ft=fn(j,:,i);
@@ -53,7 +51,6 @@ end
 
 rx=rxnp1;
 ry=rynp1;
-
 
 end
 =#

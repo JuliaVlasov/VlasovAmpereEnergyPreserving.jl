@@ -30,7 +30,6 @@ end
 export compute_diag
 
 function compute_diag(f, Ex, Ey, B, vx, vy, rx, ry, dx, t)
-
     dvx=vx[2]-vx[1]
     dvy=vy[2]-vy[1]
     dxv=dx*dvx*dvy
@@ -54,7 +53,6 @@ function compute_diag(f, Ex, Ey, B, vx, vy, rx, ry, dx, t)
     push!(diag, ry^2)
     push!(diag, kin+0.5dx*sum(Ex .* Ex)+0.5dx*sum(Ey .* Ey)+0.5dx*sum(B .* B))
 
-
     names = (
         "time",
         "BNorm",
@@ -68,5 +66,4 @@ function compute_diag(f, Ex, Ey, B, vx, vy, rx, ry, dx, t)
         "TotalEnergy2",
     )
     Dict(zip(names, diag))
-
 end

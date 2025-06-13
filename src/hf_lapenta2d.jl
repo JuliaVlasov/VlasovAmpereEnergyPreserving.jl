@@ -10,14 +10,14 @@ dB/dt  = 0
 
 """
 
-function hf_lapenta2d!(f::AbstractArray{T,3}, vx::AbstractVector, kx::AbstractVector, dt::Real) where T
-
+function hf_lapenta2d!(
+    f::AbstractArray{T,3}, vx::AbstractVector, kx::AbstractVector, dt::Real
+) where {T}
     nvx, nvy, nx = size(f)
 
     fs = complex(zeros(nvx, nx))
 
     for j in axes(f, 2)
-
         fs .= f[:, j, :]
         fs .= fft(fs, 2)
         fs .*= exp.(-1im .* vx .* kx' * dt)
@@ -25,13 +25,10 @@ function hf_lapenta2d!(f::AbstractArray{T,3}, vx::AbstractVector, kx::AbstractVe
 
         f[:, j, :] .= real(fs)
     end
-
 end
 
 #=
 function [ f ] = hf_lapenta2d(dt,Nvy,Vx,kx,f)
-
-
 
 for j=1:Nvy
     fs=squeeze(f(:,j,:)); %fn

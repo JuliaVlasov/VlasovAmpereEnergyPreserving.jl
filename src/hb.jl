@@ -8,26 +8,31 @@ function HB!(f, Ey, B, vx, vy, kx, kvx, kvy, dt)
 
     nvx, nvy, nx = size(f)
 
-    fn = fft(f, 1)
-    for l = 1:nx, j = 1:nvy, i = 1:nvx
-        fn[i, j, l]=exp(-1im*kvx[i]*vy[j]*tan(B[l]*dt/2)) * fn[i, j, l]
-    end
-    fn .= ifft(fn, 1)
+    hdt = 0.5dt
 
-    fn .= fft(fn, 2)
-    for l = 1:nx, i = 1:nvx, j = 1:nvy
-        fn[i, j, l]=exp(1im*kvy[j]*vx[i]*sin(B[l]*dt)) * fn[i, j, l];
-    end
-    fn .= ifft(fn, 2)
+    ft = complex(f)
 
-    fn .= fft(fn, 1)
-    for l = 1:nx, j = 1:nvy, i = 1:nvx
-        fn[i, j, l]=exp(-1im*kvx[i]*vy[j]*tan(B[l]*dt/2)) * fn[i, j, l]
+    ft = fft(f, 1)
+    for l in 1:nx, j in 1:nvy, i in 1:nvx
+        ft[i, j, l] *= exp(-1im*kvx[i]*vy[j]*tan(B[l]*hdt)) 
     end
-    fn .= ifft(fn, 1)
+    ft .= ifft(ft, 1)
 
-    amperey=real(ifft(1im * kx .* fft(B)))
-    Ey .= Ey .- dt .* amperey
+    ft .= fft(ft, 2)
+    for l in 1:nx, i in 1:nvx, j in 1:nvy
+        ft[i, j, l] *= exp(1im*kvy[j]*vx[i]*sin(B[l]*dt))
+    end
+    ft .= ifft(ft, 2)
+
+    ft .= fft(ft, 1)
+    for l in 1:nx, j in 1:nvy, i in 1:nvx
+        ft[i, j, l] *= exp(-1im*kvx[i]*vy[j]*tan(B[l]*hdt)) 
+    end
+    ft .= ifft(ft, 1)
+
+
+    Ey .= Ey .- dt .* real(ifft(1im * kx .* fft(B)))
+
 end
 
 #=
@@ -58,7 +63,6 @@ if (meth==0)
       end
     end
     fn=ifft(fn,[],2); 
-
 
     fn=fft(fn,[],1);
     for l=1:Nx
@@ -103,7 +107,6 @@ if (meth==1)
 
 end
 
-
    amperey=real(ifft(sqrt(-1)*kk.*fft(B)));
    Ey=Ey-dt*amperey;
 end
@@ -128,18 +131,17 @@ function HB(
     d::Int,
     meth::Int,
 )
-
     if meth == 0
         # FFT-based method (Strang splitting)
         fn = fft(fn, 1)  # FFT along first dimension
 
         # First tan(B*dt/2) term
-        @inbounds Threads.@threads for l = 1:Nx
+        @inbounds Threads.@threads for l in 1:Nx
             Bdt = B[l] * dt
             phase = -im * tan(Bdt/2)
-            for j = 1:Nvy
+            for j in 1:Nvy
                 vj = vy[j]
-                for i = 1:Nvx
+                for i in 1:Nvx
                     fn[i, j, l] *= exp(phase * kkvx[i] * vj)
                 end
             end
@@ -149,12 +151,12 @@ function HB(
         fn = fft(fn, 2)  # FFT along second dimension
 
         # sin(B*dt) term
-        @inbounds Threads.@threads for l = 1:Nx
+        @inbounds Threads.@threads for l in 1:Nx
             Bdt = B[l] * dt
             phase = im * sin(Bdt)
-            for i = 1:Nvx
+            for i in 1:Nvx
                 vi = vx[i]
-                for j = 1:Nvy
+                for j in 1:Nvy
                     fn[i, j, l] *= exp(phase * kkvy[j] * vi)
                 end
             end
@@ -164,12 +166,12 @@ function HB(
         fn = fft(fn, 1)
 
         # Second tan(B*dt/2) term
-        @inbounds Threads.@threads for l = 1:Nx
+        @inbounds Threads.@threads for l in 1:Nx
             Bdt = B[l] * dt
             phase = -im * tan(Bdt/2)
-            for j = 1:Nvy
+            for j in 1:Nvy
                 vj = vy[j]
-                for i = 1:Nvx
+                for i in 1:Nvx
                     fn[i, j, l] *= exp(phase * kkvx[i] * vj)
                 end
             end
@@ -182,9 +184,9 @@ function HB(
         fn_temp = similar(fn)
 
         # First advection step
-        @inbounds Threads.@threads for j = 1:Nvy
+        @inbounds Threads.@threads for j in 1:Nvy
             vj = vy[j]
-            for i = 1:Nx
+            for i in 1:Nx
                 ft = @view fn[:, j, i]
                 dep = vj * tan(B[i]*dt/2) / (dt/2)
                 fn_temp[:, j, i] = semilag(ft, Nvx, dep, dt/2, dvx, d)
@@ -193,9 +195,9 @@ function HB(
         fn .= fn_temp
 
         # Second advection step
-        @inbounds Threads.@threads for j = 1:Nvx
+        @inbounds Threads.@threads for j in 1:Nvx
             vj = vx[j]
-            for i = 1:Nx
+            for i in 1:Nx
                 ft = @view fn[j, :, i]
                 dep = -vj * sin(B[i]*dt) / dt
                 fn_temp[j, :, i] = semilag(ft, Nvy, dep, dt, dvy, d)
@@ -204,9 +206,9 @@ function HB(
         fn .= fn_temp
 
         # Third advection step
-        @inbounds Threads.@threads for j = 1:Nvy
+        @inbounds Threads.@threads for j in 1:Nvy
             vj = vy[j]
-            for i = 1:Nx
+            for i in 1:Nx
                 ft = @view fn[:, j, i]
                 dep = vj * tan(B[i]*dt/2) / (dt/2)
                 fn_temp[:, j, i] = semilag(ft, Nvx, dep, dt/2, dvx, d)
