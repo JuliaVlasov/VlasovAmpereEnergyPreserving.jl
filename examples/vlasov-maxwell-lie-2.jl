@@ -4,115 +4,10 @@ using LinearAlgebra
 using Printf
 using BenchmarkTools
 using .Threads
-import VlasovAmpereEnergyPreserving: poisson, updateg, semilag_d2, compute_diag
+import VlasovAmpereEnergyPreserving: poisson!, updateg, semilag_d2, compute_diag
+import VlasovAmpereEnergyPreserving: HE2!, HB2!, updateg!
 
-"""
-solve the subsystem 
-df/dt + rxgx df/dvx + rygydf/dvy = 0
-drx/dt=-0.5*int (gx Jx) dx
-dry/dt=-0.5*int (gy Jy) dx
-dEx/dt=dEy/dt=dB/dt =0
-"""
 
-function HE2(f, vx, vy, rx, gx, Ex, ry, gy, Ey, dx, dt)
-    nvx, nvy, nx = size(f)
-
-    Jx = zeros(nx)
-    Jy = zeros(ny)
-    rho = zeros(nx)
-
-    for i in 1:nx
-        Jx[i]=0.0
-        Jy[i]=0.0
-        rho[i]=0.0;
-        for j in 1:nvx, k in 1:nvy
-            Jx[i] += vx(j)*f[j, k, i]
-            Jy[i] += vy(k)*f[j, k, i]
-            rho[i] += fn[j, k, i]
-        end
-    end
-    Jx .*= dvx * dvy
-    Jy .*= dvx * dvy
-    rho .*= dvx * dvy
-
-    gx, gy = updateg(rx, Ex, ry, Ey, x, nx)
-
-    denom=1+(dt*dt/8.0)*sum(rho .* gx .^ 2)*dx;
-    rxnp1=(rx-0.5*dt*sum(gx .* Jx)*dx-(dt*dt/8.0)*rx*sum(rho .* gx .^ 2)*dx)/denom;
-    rxdemi=rx/denom-(0.25*dt/denom)*sum(gx .* Jx)*dx;
-    Exnew=rxdemi*gx;
-
-    denom=1+(dt*dt/8.0)*sum(rho .* gy .^ 2)*dx;
-    rynp1=(ry-0.5*dt*sum(Jy .* gy)*dx-(dt*dt/8.0)*ry*sum(rho .* gy .^ 2)*dx)/denom;
-    rydemi=ry/denom-(0.25*dt/denom)*sum(gy .* Jy)*dx;
-    Eynew=rydemi*gy;
-
-    for j in 1:nvy, i in 1:nx
-        ft=f[:, j, i]
-        u1=semilag_d2(ft, nvx, Exnew[i], dt, dvx)
-        f[:, j, i] .= u1
-    end
-
-    for j in 1:nvx, i in 1:nx
-        ft = fn[j, :, i]
-        u1 = semilag(ft, nvy, Eynew[i], dt, dvy)
-        f[j, :, i] .= u1
-    end
-
-    rxnp1, rynp1
-end
-
-"""
-solve the subsystem 
-df/dt + B Jv . df/dv = 0
-dB/dt = -ry d(gy)/dx 
-dEy/dt=-dB/dx
-dry/dt=-0.5*int (gy dB/dx)) dx = 0.5*int (d(gy)/dx B) dx 
-dEx/dt=0
-"""
-function HB2!(f, vx, vy, Ey, ry, gy, B, kx, kvx, kvy, dt)
-    for i in 2:(nx - 1)
-        dxgy[i]=(gy[i + 1]-gy[i - 1]) / (2dx)
-    end
-    dxgy[1]=(gy[2]-gy[nx])/(2dx)
-    dxgy[nx]=(gy[1]-gy[nx - 1])/(2dx)
-
-    denom=1+(dt*dt/8.0)*sum(dxgy .* dxgy)*dx
-    rynp1=(ry+0.5*dt*sum(B .* dxgy)*dx-(dt*dt/8.0)*ry*sum(dxgy .* dxgy)*dx)/denom;
-    rydemi=ry/denom+0.25*dt*sum(B .* dxgy)*dx/denom;
-
-    Bnp1=B-dt*rydemi*dxgy
-    Bdemi=B-0.5*dt*rydemi*dxgy
-    for i in 2:(nx - 1)
-        dxBdemi[i]=(Bdemi[i + 1]-Bdemi[i - 1])/(2dx)
-    end
-    dxBdemi[1]=(Bdemi[2]-Bdemi[nx])/(2dx)
-    dxBdemi[nx]=(Bdemi[1]-Bdemi[nx - 1])/(2dx)
-
-    Eynp1=Ey-dt*dxBdemi
-
-    fn=fft(fn, 1);
-    for l in 1:nx, j in 1:nvy, i in 1:nvx
-        fn[i, j, l]=exp(-1im*kkvx[i]*vy[j]*tan(Bdemi[l]*dt/2)) * fn[i, j, l]
-    end
-    fn=ifft(fn, 1)
-    fn=fft(fn, 2)
-    for l in 1:nx, i in 1:nvx, j in 1:nvy
-        fn[i, j, l]=exp(1im*kvy[j]*vx[i]*sin(Bdemi[l]*dt)) * fn[i, j, l]
-    end
-    fn=ifft(fn, [], 2)
-
-    fn=fft(fn, [], 1)
-    for l in 1:nx, j in 1:nvy, i in 1:nvx
-        fn[i, j, l]=exp(-1im*kvx[i]*vy[j]*tan(Bdemi[l]*dt/2)) .* fn[i, j, l]
-    end
-
-    fn=ifft(fn, 1)
-
-    Ey .= Eynp1
-    ry .= rynp1
-    B .= Bnp1
-end
 
 function vm_lie_2(tmax)
     nx = 16
@@ -172,21 +67,20 @@ function vm_lie_2(tmax)
         hf!(f, Ex, Ey, dt, vx, vy, kx)
         updateg!(gx, gy, Ex, Ey, rx, ry)
 
-        HB!(f, Ey, B, vx, vy, kx, kvx, kvy, dt)
-        gx, gy = updateg(rx, Ex, ry, Ey, x)
-
-        rx, ry = HE2!(f, Ex, Ey, gx, gy, rx, ry, x, vx, vy, dt)
+        rx, ry = HE2!(f, Ex, Ey, gx, gy, rx, ry, vx, vy, dx, dt)
         updateg!(gx, gy, Ex, Ey, rx, ry)
 
-        rx, ry = HB2!(f, Ex, Ey, B, gx, gy, rx, ry, kx, kvx, kvy, dt)
+        rx, ry = HB2!(f, Ey, B, gx, gy, rx, ry, vx, vy, kx, kvx, kvy, dx, dt)
         updateg!(gx, gy, Ex, Ey, rx, ry)
 
         push!(diags, compute_diag(f, Ex, Ey, B, vx, vy, rx, ry, dx, t))
     end
 
-    return diags
+    return vcat(DataFrame.(diags)...)
 end
 
 # Run the simulation
-tmax = 100.0
+tmax = 10.0
 @time lie2 = vm_lie_2(tmax)
+plot(lie2[!, "time"], lie2[!, "ExNorm"]; yscale=:log10)
+plot!(lie2[!, "time"][2:end], lie2[!, "EyNorm"][2:end]; yscale=:log10)

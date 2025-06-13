@@ -1,3 +1,64 @@
+"""
+solve the subsystem 
+df/dt + rxgx df/dvx + rygydf/dvy = 0
+drx/dt=-0.5*int (gx Jx) dx
+dry/dt=-0.5*int (gy Jy) dx
+dEx/dt=dEy/dt=dB/dt =0
+"""
+function HE2!(f, Ex, Ey, gx, gy, rx, ry, vx, vy, dx, dt)
+
+    nvx, nvy, nx = size(f)
+
+    dvx = vx[2] - vx[1]
+    dvy = vy[2] - vy[1]
+
+    Jx = zeros(nx)
+    Jy = zeros(nx)
+    rho = zeros(nx)
+
+    for i in 1:nx
+        Jx[i]=0.0
+        Jy[i]=0.0
+        rho[i]=0.0;
+        for j in 1:nvx, k in 1:nvy
+            Jx[i] += vx[j]*f[j, k, i]
+            Jy[i] += vy[k]*f[j, k, i]
+            rho[i] += f[j, k, i]
+        end
+    end
+
+    Jx .*= dvx * dvy
+    Jy .*= dvx * dvy
+    rho .*= dvx * dvy
+
+    updateg!(gx, gy, Ex, Ey, rx, ry)
+
+    denom=1+(dt*dt/8.0)*sum(rho .* gx .^ 2)*dx;
+    rxnp1=(rx-0.5*dt*sum(gx .* Jx)*dx-(dt*dt/8.0)*rx*sum(rho .* gx .^ 2)*dx)/denom;
+    rxdemi=rx/denom-(0.25*dt/denom)*sum(gx .* Jx)*dx;
+    Exnew=rxdemi*gx;
+
+    denom=1+(dt*dt/8.0)*sum(rho .* gy .^ 2)*dx;
+    rynp1=(ry-0.5*dt*sum(Jy .* gy)*dx-(dt*dt/8.0)*ry*sum(rho .* gy .^ 2)*dx)/denom;
+    rydemi=ry/denom-(0.25*dt/denom)*sum(gy .* Jy)*dx;
+    Eynew=rydemi*gy;
+
+    fvx = zeros(nvx)
+    for j in 1:nvy, i in 1:nx
+        fvx = f[:, j, i]
+        fvx .= semilag_d2(fvx, Exnew[i], dt, dvx)
+        f[:, j, i] .= fvx
+    end
+
+    fvy = zeros(nvy)
+    for j in 1:nvx, i in 1:nx
+        fvy .= f[j, :, i]
+        fvy .= semilag_d2(fvy, Eynew[i], dt, dvy)
+        f[j, :, i] .= fvy
+    end
+
+    rxnp1, rynp1
+end
 #=
 function [ fn,rx,ry, gx, gy ] = HE2(fn,vx,vy,rx,gx,Ex,ry,gy,Ey,Nvx,Nvy,dvx,dvy,Nx,dx,x,dt,d)
 

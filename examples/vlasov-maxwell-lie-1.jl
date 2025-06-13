@@ -71,7 +71,7 @@ function vm_lie_1(tmax)
         iter += 1
         t += dt
 
-        push!(diags, compute_diag(f, Ey, Ex, B, vx, vy, rx, ry, dx, t))
+        push!(diags, compute_diag(f, Ex, Ey, B, vx, vy, rx, ry, dx, t))
     end
 
     return vcat(DataFrame.(diags)...)
@@ -80,5 +80,5 @@ end
 # Run the simulation
 tmax = 10.0
 @time lie1 = vm_lie_1(tmax)
-plot(lie1[!, "time"], lie1[!, "ExNorm"]; yscale=:log10)
-plot!(lie1[!, "time"][2:end], lie1[!, "EyNorm"][2:end]; yscale=:log10)
+plot(lie1[!, "time"], lie1[!, "ExNorm"]; yscale=:log10, label="∫|Ex| lie1")
+plot!(lie1[!, "time"][2:end], lie1[!, "EyNorm"][2:end]; yscale=:log10, label="∫|Ey| lie2")

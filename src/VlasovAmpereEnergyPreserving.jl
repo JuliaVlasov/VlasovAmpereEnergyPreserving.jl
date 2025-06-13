@@ -13,5 +13,7 @@ include("he.jl")
 include("hf_lapenta2d.jl")
 include("he_lapenta2d.jl")
 include("hb_lapenta2d.jl")
+include("he2.jl")
+include("hb2.jl")
 
 end
