@@ -11,19 +11,19 @@ math```
 """
 function HE_lapenta2d!(f, Ex, Ey, vx, vy, dt)
 
-    nx = length(Ex)
-    nvx = length(vx)
-    nvy = length(vy)
+    nvx, nvy, nx = size(f)
+
     dvx = vx[2] - vx[1]
     dvy = vy[2] - vy[1]
 
     Jx = zeros(nx)
     Jy = zeros(nx)
     rho = zeros(nx)
-    for i in axes(f, 3), j in axes(f, 2), k in axes(f, 1)
-        Jx[i] += vx[j] * f[j, k, i]
-        Jy[i] += vy[k] * f[j, k, i]
-        rho[i] += f[j, k, i]
+
+    for ix in axes(f, 3), ivy in axes(f, 2), ivx in axes(f, 1)
+        Jx[ix] += vx[ivx] * f[ivx, ivy, ix]
+        Jy[ix] += vy[ivy] * f[ivx, ivy, ix]
+        rho[ix] += f[ivx, ivy, ix]
     end
 
     Jx .*= dvx * dvy
@@ -36,16 +36,18 @@ function HE_lapenta2d!(f, Ex, Ey, vx, vy, dt)
     Exnew = (1 ./ (1 .+ dt2_rho4)) .* Ex .- (dt ./ (2 .+ dt2_rho2)) .* Jx
     Eynew = (1 ./ (1 .+ dt2_rho4)) .* Ey .- (dt ./ (2 .+ dt2_rho2)) .* Jy
 
+    fvx = zeros(nvx)
     for j in axes(f, 2), i in eachindex(Exnew)
-        ft = f[:, j, i]
-        u1 = semilag_d2(ft, nvx, Exnew[i], dt, dvx)
-        f[:, j, i] .= u1
+        fvx .= f[:, j, i]
+        fvx .= semilag_d2(fvx, Exnew[i], dt, dvx)
+        f[:, j, i] .= fvx
     end
 
+    fvy = zeros(nvy)
     for k in axes(f, 1), i in eachindex(Eynew)
-        ft = f[k, :, i]
-        u1 = semilag_d2(ft, nvy, Eynew[i], dt, dvy)
-        f[k, :, i] .= u1
+        fvy .= f[k, :, i]
+        fvy .= semilag_d2(fvy, Eynew[i], dt, dvy)
+        f[k, :, i] .= fvy
     end
 
     Ex .= 2 .* Exnew .- Ex

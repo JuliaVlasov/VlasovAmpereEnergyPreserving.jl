@@ -1,7 +1,7 @@
 using FFTW
 using LinearAlgebra
 using Printf
-import VlasovAmpereEnergyPreserving: updateg, poisson, semilag_d2, compute_diag
+import VlasovAmpereEnergyPreserving: updateg, poisson!, semilag_d2, compute_diag
 using DataFrames
 using Plots
 import VlasovAmpereEnergyPreserving: hf_lapenta2d!, HE_lapenta2d!, HB_lapenta2d!
@@ -14,7 +14,7 @@ import VlasovAmpereEnergyPreserving: hf_lapenta2d!, HE_lapenta2d!, HB_lapenta2d!
 function lapenta_2d(tmax)
     # Computational domain parameters
     nx = 16
-    nvx = 47
+    nvx = 49
     nvy = 47
     dt = 0.125 / 2
     nt = floor(Int, tmax / dt)
@@ -50,12 +50,11 @@ function lapenta_2d(tmax)
     Ey = zeros(nx)
     B = zeros(nx)
     rho = vec(sum(f, dims = (1, 2))) * dvx * dvy
-    Ex = poisson(rho, x, kx)
+    poisson!(Ex, rho, kx)
     B = α * cos.(kinit .* x)
 
     rx = sqrt(0.5 * sum(Ex .^ 2) * dx + 1.0)
     ry = sqrt(0.5 * sum(Ey .^ 2) * dx + 1.0)
-    gx, gy = updateg(Ex, Ey, rx, ry)
 
     # Useful arrays
     kvx = 2π / (vxmax - vxmin) * fftfreq(nvx, nvx) |> collect
@@ -64,23 +63,18 @@ function lapenta_2d(tmax)
     time = 0.0
     iter = 0
 
-    diags = [compute_diag(f, B, Ey, Ex, vx, vy, ry, rx, dx, time)]
+    diags = [compute_diag(f, Ex, Ey, B, vx, vy, rx, ry, dx, time)]
 
     while abs(time - tmax) > 1e-10
-        iter += 1
-        time += dt
 
-        @printf("Time: %.2f, Max gy: %.4e\n", time, maximum(abs.(gy)))
-
-        hf_lapenta2d!(f, dt, vx, kx)
+        hf_lapenta2d!(f, vx, kx, dt)
         HE_lapenta2d!(f, Ex, Ey, vx, vy, dt)
         HB_lapenta2d!(f, Ex, Ey, B, vx, vy, kx, kvx, kvy, dt)
 
-        push!(diags, compute_diag(f, B, Ey, Ex, vx, vy, ry, rx, dx, time))
+        iter += 1
+        time += dt
 
-        rho = sum(f, dims = [1, 2]) * dvx * dvy
-        Ex_poisson = poisson(vec(rho), x, kx)
-        @show iter, time, norm(Ex_poisson - Ex)
+        push!(diags, compute_diag(f, Ex, Ey, B, vx, vy, rx, ry, dx, time))
 
     end
 
@@ -89,6 +83,7 @@ function lapenta_2d(tmax)
 end
 
 
-tmax = 100.0
+tmax = 10.0
 @time lapenta = lapenta_2d(tmax)
-plot(lapenta[!, "time"], lapenta[!, "TotalEnergy1"])
+plot(lapenta[!, "time"], lapenta[!, "ExNorm"], yscale = :log10)
+plot!(lapenta[!, "time"][2:end], lapenta[!, "EyNorm"][2:end], yscale=:log10)

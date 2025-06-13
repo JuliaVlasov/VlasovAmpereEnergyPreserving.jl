@@ -29,7 +29,7 @@ end
 
 export compute_diag
 
-function compute_diag(f, B, Ey, Ex, vx, vy, ry, rx, dx, t)
+function compute_diag(f, Ex, Ey, B, vx, vy, rx, ry, dx, t)
 
     dvx=vx[2]-vx[1]
     dvy=vy[2]-vy[1]
@@ -37,7 +37,7 @@ function compute_diag(f, B, Ey, Ex, vx, vy, ry, rx, dx, t)
     kin=0
 
     for k in axes(f, 3), i in eachindex(vx), j in eachindex(vy)
-        kin += vx[i]*vx[i]+vy[j] * vy[j] * f[i, j, k]
+        kin += (vx[i]*vx[i]+vy[j]*vy[j]) * f[i, j, k]
     end
 
     kin=0.5*kin*dxv;
@@ -57,9 +57,9 @@ function compute_diag(f, B, Ey, Ex, vx, vy, ry, rx, dx, t)
 
     names = (
         "time",
-        "IntegralB",
-        "IntegralEx",
-        "IntegralEy",
+        "BNorm",
+        "ExNorm",
+        "EyNorm",
         "KineticEnergy",
         "IntegralF",
         "TotalEnergy1",

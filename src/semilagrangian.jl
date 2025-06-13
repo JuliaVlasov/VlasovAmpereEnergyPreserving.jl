@@ -2,7 +2,6 @@ function make_semilag(d::Int)
 
     @inline function specialized_semilag(
         f::Vector{Float64},
-        Nv::Int,
         E::Float64,
         dt::Float64,
         dv::Float64,
@@ -14,9 +13,10 @@ function make_semilag(d::Int)
 
         # Precompute the shift amount
         shift = E * dt / dv
+        Nv = length(f)
 
         # Main loop over velocity grid points
-        @inbounds for i = 1:Nv
+        @inbounds for i = eachindex(f_new)
             # Compute base index and fractional part
             j = floor(Int, i - shift)
             α = (i - shift) - j
