@@ -6,12 +6,12 @@
 # dEy/dt = -Jy
 # dB/dt=drx/dt=dry/dt=0
 # """
-function hf!(f, Ex, Ey, dt, vx, vy, kx)
+function hf!(f, Ex, Ey, dt, mesh, kx)
 
     nvx, nvy, nx = size(f)
 
-    dvx = vx[2]-vx[1]
-    dvy = vy[2]-vy[1]
+    dvx = mesh.dvx
+    dvy = mesh.dvy
 
     rhoh = vec(sum(f; dims=[1, 2])) .* dvx .* dvy
 
@@ -23,12 +23,12 @@ function hf!(f, Ex, Ey, dt, vx, vy, kx)
 
     for j in axes(f, 2)
         fs .= f[:, j, :]
-        fnsvy[:, j, :] .= vy[j] .* fs ./ vx
+        fnsvy[:, j, :] .= mesh.vy[j] .* fs ./ mesh.vx
         fs .= fft(fs, 2)
-        fs .*= exp.(-1im .* vx .* kx' * dt)
+        fs .*= exp.(-1im .* mesh.vx .* kx' * dt)
         fs .= ifft(fs, 2)
         f[:, j, :] .= real(fs)
-        fnp1vy[:, j, :] .= vy[j] * real(fs) ./ vx
+        fnp1vy[:, j, :] .= mesh.vy[j] * real(fs) ./ mesh.vx
     end
 
     # Calculate updated charge densities

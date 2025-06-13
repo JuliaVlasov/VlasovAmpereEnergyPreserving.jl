@@ -1,7 +1,7 @@
 using FFTW
 import VlasovAmpereEnergyPreserving: poisson!, updateg, semilag_d2, compute_diag
 import VlasovAmpereEnergyPreserving: hf!, HE!, HB!
-import VlasovAmpereEnergyPreserving: updateg!
+import VlasovAmpereEnergyPreserving: updateg!, Mesh1D2V
 using Plots
 using DataFrames
 
@@ -13,18 +13,20 @@ function vm_lie_1(tmax)
     nt = floor(Int, tmax / dt)
 
     kinit = 1.25
-    xmin, xmax = 0, 2π / kinit
+    xmin, xmax = 0.0, 2π / kinit
     vxmin, vxmax = -0.2, 0.2
     vymin, vymax = -0.5, 0.5
 
+    mesh = Mesh1D2V(xmin, xmax, nx, vxmin, vxmax, nvx, vymin, vymax, nvy)
+
     f = zeros(nvx, nvy, nx)
 
-    x = LinRange(xmin, xmax, nx+1)[1:(end - 1)]
-    dx = x[2] - x[1]
-    vx = LinRange(vxmin, vxmax, nvx+1)[1:(end - 1)]
-    vy = LinRange(vymin, vymax, nvy+1)[1:(end - 1)]
-    dvx = vx[2] - vx[1]
-    dvy = vy[2] - vy[1]
+    x = mesh.x
+    dx = mesh.dx
+    vx = mesh.vx
+    vy = mesh.vy
+    dvx = mesh.dvx
+    dvy = mesh.dvy
 
     α = 0.0001
     σ1 = 0.02/sqrt(2)
@@ -55,11 +57,11 @@ function vm_lie_1(tmax)
     t = 0.0
     iter = 0
 
-    diags = [compute_diag(f, Ex, Ey, B, vx, vy, rx, ry, dx, t)]
+    diags = [compute_diag(f, Ex, Ey, B, rx, ry, mesh, t)]
 
     while abs(t - tmax) > 1e-10
 
-        hf!(f, Ex, Ey, dt, vx, vy, kx)
+        hf!(f, Ex, Ey, dt, mesh, kx)
         updateg!(gx, gy, Ex, Ey, rx, ry)
 
         rx, ry = HE!(f, rx, ry, B, vx, vy, gx, gy, kx, dx, dt)
@@ -71,7 +73,7 @@ function vm_lie_1(tmax)
         iter += 1
         t += dt
 
-        push!(diags, compute_diag(f, Ex, Ey, B, vx, vy, rx, ry, dx, t))
+        push!(diags, compute_diag(f, Ex, Ey, B, rx, ry, mesh, t))
     end
 
     return vcat(DataFrame.(diags)...)
