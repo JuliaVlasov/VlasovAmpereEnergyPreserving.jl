@@ -1,3 +1,22 @@
+# +
+function HE!(f, r, v, g, nv, kv, dv, nx, dx, dt)
+    J = vec(sum(v .* f; dims=1)) .* dv
+    rho = vec(sum(f; dims=1)) .* dv
+    Jnpdemi = J .+ 0.25 * dt * r * g .* rho
+    rnp1 =
+        (1/(1+(dt*dt/8) * sum(rho .* g .^ 2) * dx)) * (r-0.5 * dt * sum(g .* Jnpdemi) * dx)
+
+    enew = 0.5 * (rnp1+r) * g
+
+    u = zeros(nv)
+    for i in eachindex(enew)
+        u .= f[:, i]
+        u .= semilag_d2(u, enew[i], dt, dv)
+        f[:, i] .= u
+    end
+
+    return rnp1
+end
 """
 solve the subsystem 
 df/dt + rxgx df/dvx + rygydf/dvy = 0
@@ -6,7 +25,7 @@ drx/dt=-0.5*int (gx Jx) dx
 dry/dt=-0.5*int (gy (Jy+dB/dx)) dx
 dEx/dt=dEy/dt=0
 """
-function HE!(f, rx, ry, B, gx, gy, kx, mesh, dt)
+function HE!(f, rx, ry, B, gx, gy, kx, mesh::Mesh1D2V, dt)
     nvx, nvy, nx = size(f)
 
     dx = mesh.dx

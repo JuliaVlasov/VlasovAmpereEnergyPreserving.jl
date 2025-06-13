@@ -6,30 +6,11 @@ function [ f,E ] = hf_lapenta(dt,dv,V,kx,k,f,E)
 end
 =#
 
-using FFTW
-
 export hf_lapenta
 
-function hf_lapenta(dt, dv, V, kx, k, f, E)
-    # Compute Fourier transform along x-dimension (transpose first)
-    f_hat = fft(f', 1)
-
-    @show size(f_hat)
-    @show size(V)
-    @show size(kx)
-    # Apply phase shift in Fourier space
-    phase_shift = exp.(-im * V .* kx * dt)
-    f_shifted = phase_shift' .* f_hat
-
-    # Inverse Fourier transform and transpose back
-    f = real(ifft(f_shifted, 1))'
-
-    return f, E
+function hf_lapenta!(f, E, dt, dv, v, kx)
+    f_hat = fft(f, 2)
+    f_hat .*= exp.(-im * v .* kx' * dt)
+    f .= real(ifft(f_hat, 2))
 end
 
-function hf_lapenta!(f, E, dt, dv, V, kx, k)
-    f_hat = fft(f', 1)
-    f_hat .*= exp.(-im * V' .* kx * dt)
-    f .= real(ifft(f_hat, 1))'
-    return f, E
-end

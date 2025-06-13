@@ -7,59 +7,12 @@ using FFTW
 using LinearAlgebra
 using Plots
 using ProgressMeter
-import VlasovAmpereEnergyPreserving: poisson, semilag_d2
+import VlasovAmpereEnergyPreserving: poisson, semilag_d2, hf!, HE!
 using DispersionRelations
 
 # +
-import VlasovAmpereEnergyPreserving.hf
 
-function hf!(
-    f::Matrix{Float64},
-    E::Vector{Float64},
-    dt::Float64,
-    dv::Float64,
-    v::Vector{Float64},
-    kx::Vector{Float64},
-)
-    rhoh = vec(sum(f; dims=1)) .* dv
-    ft = fft(f, 2)
-    ft .*= exp.(-1im * v .* kx' * dt)
-    f .= real(ifft(ft, 2))
-    rhon = vec(sum(f; dims=1)) .* dv
-    Ef = fft(E)
-    rhs = fft(rhon .- rhoh)
 
-    nx = length(kx)
-
-    for i in 2:nx
-        Ef[i] = Ef[i] + rhs[i] / (1im * kx[i])
-    end
-
-    Ef[1] = 0
-
-    E .= real(ifft(Ef))
-end
-
-# +
-function HE!(f, r, v, g, nv, kv, dv, nx, dx, dt, d)
-    J = vec(sum(v .* f; dims=1)) .* dv
-    rho = vec(sum(f; dims=1)) .* dv
-    Jnpdemi = J .+ 0.25 * dt * r * g .* rho
-    rnp1 =
-        (1/(1+(dt*dt/8) * sum(rho .* g .^ 2) * dx)) * (r-0.5 * dt * sum(g .* Jnpdemi) * dx)
-
-    enew = 0.5 * (rnp1+r) * g
-
-    u = zeros(nv)
-    u1 = zeros(nv)
-    for i in eachindex(enew)
-        u .= f[:, i]
-        u1 .= semilag_d2(u, nv, enew[i], dt, dv)
-        f[:, i] .= u1
-    end
-
-    return rnp1
-end
 
 # +
 function run(nx, nv, tmax, dt, α)
@@ -91,7 +44,8 @@ function run(nx, nv, tmax, dt, α)
     feq = feq / mass_hot
     fn = feq .* (1 .+ α * cos.(kk * x'))
     rho = vec(sum(fn; dims=1) * dv .- 1)
-    E = poisson(rho, x, kx)
+    E = zeros(nx)
+    poisson!(E, rho, kx)
     r = √(0.5 * sum(E .^ 2) * dx)
     g = E / r
 
@@ -113,20 +67,21 @@ function run(nx, nv, tmax, dt, α)
     r = √(0.5 * sum(E .^ 2) * dx)
     g = E / r
 
+    Ep = zeros(nx)
     while abs(t) < abs(tmax)
         iter += 1
         t += dt
         mod(iter, 100) == 0 && println(t)
 
         hf!(fn, E, dt/2, dv, v, kx)
-        r = HE!(fn, r, v, E / r, nv, kv, dv, nx, dx, dt, d)
+        r = HE!(fn, r, v, E / r, nv, kv, dv, nx, dx, dt)
         hf!(fn, E, dt/2, dv, v, kx)
 
         push!(tabt, iter * dt)
         push!(enelec, 0.5 * (dx * sum(E .^ 2)))
         Ef = fft(E)
         rho = vec(sum(fn; dims=1)) * dv .- 1
-        Ep = poisson(rho, x, kx)
+        poisson!(Ep, rho, kx)
         push!(diff_poisson, norm(Ep - E))
         modes = abs.(Ef[2:10])
         push!(r_history, r)

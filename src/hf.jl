@@ -1,3 +1,30 @@
+function hf!(
+    f::Matrix{Float64},
+    E::Vector{Float64},
+    dt::Float64,
+    dv::Float64,
+    v::Vector{Float64},
+    kx::Vector{Float64},
+)
+    rhoh = vec(sum(f; dims=1)) .* dv
+    ft = fft(f, 2)
+    ft .*= exp.(-1im * v .* kx' * dt)
+    f .= real(ifft(ft, 2))
+    rhon = vec(sum(f; dims=1)) .* dv
+    Ef = fft(E)
+    rhs = fft(rhon .- rhoh)
+
+    nx = length(kx)
+
+    for i in 2:nx
+        Ef[i] = Ef[i] + rhs[i] / (1im * kx[i])
+    end
+
+    Ef[1] = 0
+
+    E .= real(ifft(Ef))
+end
+
 # """
 # solve the subsystem
 # 
@@ -6,7 +33,7 @@
 # dEy/dt = -Jy
 # dB/dt=drx/dt=dry/dt=0
 # """
-function hf!(f, Ex, Ey, dt, mesh, kx)
+function hf!(f, Ex, Ey, dt, mesh::Mesh1D2V, kx)
 
     nvx, nvy, nx = size(f)
 
