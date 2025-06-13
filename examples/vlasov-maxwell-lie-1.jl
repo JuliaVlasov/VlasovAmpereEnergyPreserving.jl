@@ -83,5 +83,4 @@ end
 # Run the simulation
 tmax = 100.0
 @time lie1 = vm_lie_1(tmax)
-plot(lie1[!,"time"], lie1[!, "TotalEnergy1"])
-
+plot(lie1[!, "time"], lie1[!, "TotalEnergy1"])

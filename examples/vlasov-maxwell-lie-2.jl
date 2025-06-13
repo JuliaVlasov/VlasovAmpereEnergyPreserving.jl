@@ -80,56 +80,44 @@ function HB2!(f, vx, vy, Ey, ry, gy, B, kx, kvx, kvy, dt)
     for i = 2:(nx-1)
         dxgy[i]=(gy[i+1]-gy[i-1]) / (2dx)
     end
-    dxgy(1)=(gy(2)-gy(nx))/(2.0*dx);
-    dxgy(nx)=(gy(1)-gy(nx-1))/(2.0*dx);
-    denom=1+(dt*dt/8.0)*sum(dxgy .* dxgy)*dx;
+    dxgy[1]=(gy[2]-gy[nx])/(2dx)
+    dxgy[nx]=(gy[1]-gy[nx-1])/(2dx)
+
+    denom=1+(dt*dt/8.0)*sum(dxgy .* dxgy)*dx
     rynp1=(ry+0.5*dt*sum(B .* dxgy)*dx-(dt*dt/8.0)*ry*sum(dxgy .* dxgy)*dx)/denom;
     rydemi=ry/denom+0.25*dt*sum(B .* dxgy)*dx/denom;
 
-    Bnp1=B-dt*rydemi*dxgy;
-    Bdemi=B-0.5*dt*rydemi*dxgy;
+    Bnp1=B-dt*rydemi*dxgy
+    Bdemi=B-0.5*dt*rydemi*dxgy
     for i = 2:(nx-1)
-        dxBdemi(i)=(Bdemi(i+1)-Bdemi(i-1))/(2.0*dx);
+        dxBdemi[i]=(Bdemi[i+1]-Bdemi[i-1])/(2dx)
     end
-    dxBdemi(1)=(Bdemi(2)-Bdemi(nx))/(2.0*dx);
-    dxBdemi(nx)=(Bdemi(1)-Bdemi(nx-1))/(2.0*dx);
+    dxBdemi[1]=(Bdemi[2]-Bdemi[nx])/(2dx)
+    dxBdemi[nx]=(Bdemi[1]-Bdemi[nx-1])/(2dx)
 
-    Eynp1=Ey-dt*dxBdemi;
+    Eynp1=Ey-dt*dxBdemi
 
-    fn=fft(fn, [], 1);
-    for l = 1:nx
-        for j = 1:nvy
-            for i = 1:nvx
-                fn(i, j, l)=exp(-1i*kkvx(i)*vy(j)*tan(Bdemi(l)*dt/2)) .* fn(i, j, l);
-            end
-        end
+    fn=fft(fn, 1);
+    for l = 1:nx, j = 1:nvy, i = 1:nvx
+        fn[i, j, l]=exp(-1im*kkvx[i]*vy[j]*tan(Bdemi[l]*dt/2)) * fn[i, j, l]
     end
-    fn=ifft(fn, [], 1);
-
-    fn=fft(fn, [], 2);
-    for l = 1:nx
-        for i = 1:nvx
-            for j = 1:nvy
-                fn(i, j, l)=exp(1i*kkvy(j)*vx(i)*sin(Bdemi(l)*dt)) .* fn(i, j, l);
-            end
-        end
+    fn=ifft(fn, 1)
+    fn=fft(fn, 2)
+    for l = 1:nx, i = 1:nvx, j = 1:nvy
+        fn[i, j, l]=exp(1im*kvy[j]*vx[i]*sin(Bdemi[l]*dt)) * fn[i, j, l]
     end
-    fn=ifft(fn, [], 2);
+    fn=ifft(fn, [], 2)
 
-
-    fn=fft(fn, [], 1);
-    for l = 1:nx
-        for j = 1:nvy
-            for i = 1:nvx
-                fn(i, j, l)=exp(-1i*kkvx(i)*vy(j)*tan(Bdemi(l)*dt/2)) .* fn(i, j, l);
-            end
-        end
+    fn=fft(fn, [], 1)
+    for l = 1:nx, j = 1:nvy, i = 1:nvx
+        fn[i, j, l]=exp(-1im*kvx[i]*vy[j]*tan(Bdemi[l]*dt/2)) .* fn[i, j, l]
     end
-    fn=ifft(fn, [], 1);
 
-    Ey=Eynp1;
-    ry=rynp1;
-    B=Bnp1;
+    fn=ifft(fn, 1)
+
+    Ey .= Eynp1
+    ry .= rynp1
+    B .= Bnp1
 
 end
 
@@ -178,32 +166,31 @@ function vm_lie_2(tmax)
     rx=sqrt(0.5*sum(Ex .* Ex)*dx+1.0)
     ry=sqrt(0.5*sum(Ey .* Ey)*dx+1.0)
 
-    gx, gy = updateg(rx, Ex, ry, Ey, x)
+    gx, gy = updateg(Ex, Ey, rx, ry)
 
     t = 0.0
     iter = 0
 
 
-    diags = [compute_diag(f, B, Ey, Ex, vx, vy, ry, rx, dx, t)]
+    diags = [compute_diag(f, Ex, Ey, B, vx, vy, rx, ry, dx, t)]
 
     while abs(t - tmax) > 1e-10
         iter += 1
         t += dt
 
-        hf!(f, Ex, Ey, dt, vy, vy, kx)
-        gx, gy = updateg(rx, Ex, ry, Ey, x)
+        hf!(f, Ex, Ey, dt, vx, vy, kx)
+        updateg!(gx, gy, Ex, Ey, rx, ry)
 
         HB!(f, Ey, B, vx, vy, kx, kvx, kvy, dt)
         gx, gy = updateg(rx, Ex, ry, Ey, x)
 
-        rx, ry, gx, gy = HE2(f, vx, vy, rx, gx, Ex, ry, gy, Ey, x, dt)
-        gx, gy = update_g(rx, Ex, ry, Ey, x)
+        rx, ry = HE2!(f, Ex, Ey, gx, gy, rx, ry, x, vx, vy, dt)
+        updateg!(gx, gy, Ex, Ey, rx, ry)
 
-        rx, ry = HB2(f, vx, vy, Ey, ry, gy, B, kx, kvx, kvy, dt)
-        gx, gy = updateg(rx, Ex, ry, Ey, x)
+        rx, ry = HB2!(f, Ex, Ey, B, gx, gy, rx, ry, kx, kvx, kvy, dt)
+        updateg!(gx, gy, Ex, Ey, rx, ry)
 
-
-        push!(diags, compute_diag(f, B, Ey, Ex, vx, vy, ry, rx, dx, t))
+        push!(diags, compute_diag(f, Ex, Ey, B, vx, vy, rx, ry, dx, t))
 
     end
 

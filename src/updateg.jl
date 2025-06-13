@@ -20,18 +20,18 @@ function [ gx,gy ] = updateg(rx,Ex,ry,Ey,x,Nx )
 end
 =#
 
-function updateg(Ex, Ey, rx, ry)
+function updateg(Ex::AbstractVector, Ey::AbstractVector, rx::Real, ry::Real)
 
-    gx =  abs(rx) > 1e-12 ?  Ex ./ rx : zero(Ex)
-    gy =  abs(ry) > 1e-12 ?  Ey ./ ry : zero(Ex)
+    gx = abs(rx) > 1e-12 ? Ex ./ rx : zero(Ex)
+    gy = abs(ry) > 1e-12 ? Ey ./ ry : zero(Ex)
 
     return gx, gy
 
 end
 
-function updateg!(gx, gy, Ex, Ey, rx, ry)
+function updateg!(gx::Vector{Real}, gy::Vector{Real}, Ex::Vector{Real}, Ey::Vector{Real}, rx::Real, ry::Real)
 
-    gx .=  abs(rx) > 1e-12 ?  Ex ./ rx : zero(Ex)
-    gy .=  abs(ry) > 1e-12 ?  Ey ./ ry : zero(Ex)
+    gx .= abs(rx) > 1e-12 ? Ex ./ rx : zero(Ex)
+    gy .= abs(ry) > 1e-12 ? Ey ./ ry : zero(Ex)
 
 end

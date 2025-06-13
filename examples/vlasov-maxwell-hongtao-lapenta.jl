@@ -4,7 +4,7 @@ using Printf
 import VlasovAmpereEnergyPreserving: updateg, poisson, semilag_d2, compute_diag
 using DataFrames
 using Plots
-import VlasovAmpereEnergyPreserving:  hf_lapenta2d!, HE_lapenta2d!, HB_lapenta2d!
+import VlasovAmpereEnergyPreserving: hf_lapenta2d!, HE_lapenta2d!, HB_lapenta2d!
 
 
 
@@ -91,4 +91,4 @@ end
 
 tmax = 100.0
 @time lapenta = lapenta_2d(tmax)
-plot(lapenta[!,"time"], lapenta[!, "TotalEnergy1"])
+plot(lapenta[!, "time"], lapenta[!, "TotalEnergy1"])
