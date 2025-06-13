@@ -11,7 +11,7 @@ dB/dt  = 0
 """
 
 function hf_lapenta2d!(
-    f::AbstractArray{T,3}, vx::AbstractVector, kx::AbstractVector, dt::Real
+    f::AbstractArray{T,3}, kx::AbstractVector, mesh::Mesh1D2V, dt::Real
 ) where {T}
     nvx, nvy, nx = size(f)
 
@@ -20,7 +20,7 @@ function hf_lapenta2d!(
     for j in axes(f, 2)
         fs .= f[:, j, :]
         fs .= fft(fs, 2)
-        fs .*= exp.(-1im .* vx .* kx' * dt)
+        fs .*= exp.(-1im .* mesh.vx .* kx' * dt)
         fs .= ifft(fs, 2)
 
         f[:, j, :] .= real(fs)
