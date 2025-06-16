@@ -62,11 +62,13 @@ function vm_lie_2(tmax)
 
     diags = [compute_diag(f, Ex, Ey, B, rx, ry, mesh, t)]
 
+    hf = OperatorHF(mesh)
+
     while abs(t - tmax) > 1e-10
         iter += 1
         t += dt
 
-        hf!(f, Ex, Ey, dt, mesh, kx)
+        solve!(f, Ex, Ey, hf, dt)
         updateg!(gx, gy, Ex, Ey, rx, ry)
 
         rx, ry = HE2!(f, Ex, Ey, gx, gy, rx, ry, mesh, dt)
@@ -81,8 +83,3 @@ function vm_lie_2(tmax)
     return vcat(DataFrame.(diags)...)
 end
 
-# Run the simulation
-tmax = 10.0
-@time lie2 = vm_lie_2(tmax)
-plot(lie2[!, "time"], lie2[!, "ExNorm"]; yscale=:log10)
-plot!(lie2[!, "time"][2:end], lie2[!, "EyNorm"][2:end]; yscale=:log10)

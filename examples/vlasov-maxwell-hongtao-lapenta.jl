@@ -78,7 +78,3 @@ function lapenta_2d(tmax)
     return vcat(DataFrame.(diags)...)
 end
 
-tmax = 10.0
-@time lapenta = lapenta_2d(tmax)
-plot(lapenta[!, "time"], lapenta[!, "ExNorm"]; yscale=:log10, label = "Σ Ex² lapenta")
-plot!(lapenta[!, "time"][2:end], lapenta[!, "EyNorm"][2:end]; yscale=:log10, label = "Σ Êy² lapenta")

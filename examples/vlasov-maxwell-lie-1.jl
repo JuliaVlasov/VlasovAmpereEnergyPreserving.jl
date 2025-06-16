@@ -79,8 +79,3 @@ function vm_lie_1(tmax)
     return vcat(DataFrame.(diags)...)
 end
 
-# Run the simulation
-tmax = 10.0
-@time lie1 = vm_lie_1(tmax)
-plot(lie1[!, "time"], lie1[!, "ExNorm"]; yscale=:log10, label="∫|Ex| lie1")
-plot!(lie1[!, "time"][2:end], lie1[!, "EyNorm"][2:end]; yscale=:log10, label="∫|Ey| lie2")
