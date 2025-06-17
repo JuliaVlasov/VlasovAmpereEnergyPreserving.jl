@@ -2,6 +2,7 @@ using FFTW
 import VlasovAmpereEnergyPreserving: poisson!, updateg, semilag_d2, compute_diag
 import VlasovAmpereEnergyPreserving: hf!, HE!, HB!
 import VlasovAmpereEnergyPreserving: updateg!, Mesh1D2V
+import VlasovAmpereEnergyPreserving: OperatorHF, solve!
 using Plots
 using DataFrames
 
@@ -59,9 +60,11 @@ function vm_lie_1(tmax)
 
     diags = [compute_diag(f, Ex, Ey, B, rx, ry, mesh, t)]
 
+    hf = OperatorHF(mesh)
+
     while abs(t - tmax) > 1e-10
 
-        hf!(f, Ex, Ey, dt, mesh, kx)
+        solve!(f, Ex, Ey, hf, dt)
         updateg!(gx, gy, Ex, Ey, rx, ry)
 
         rx, ry = HE!(f, rx, ry, B, gx, gy, kx, mesh, dt)

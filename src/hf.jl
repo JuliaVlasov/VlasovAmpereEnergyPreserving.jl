@@ -1,11 +1,16 @@
 struct OperatorHF{T}
 
-    mesh :: AsbtractMesh
+    mesh :: AbstractMesh
     kx :: Vector{T}
+    kmod :: Vector{T}
 
-    function OperatorHF( mesh :: Mesh1D2DV{T} ) where T
+    function OperatorHF( mesh :: Mesh1D2V{T} ) where T
 
-       kx = collect(2π / (mesh.xmax - mesh.xmin) * fftfreq(mesh.nx, mesh.nx))
+       kx = collect(2π / (mesh.xmax - mesh.xmin) .* fftfreq(mesh.nx, mesh.nx))
+       kmod = copy(kx)
+       kmod[1] = 1  
+
+       new{T}(mesh, kx, kmod)
 
     end
 
@@ -51,8 +56,8 @@ function solve!(f, Ex, Ey, hf::OperatorHF, dt)
 
     nvx, nvy, nx = size(f)
 
-    dvx = mesh.dvx
-    dvy = mesh.dvy
+    dvx = hf.mesh.dvx
+    dvy = hf.mesh.dvy
 
     rhoh = vec(sum(f; dims=[1, 2])) .* dvx .* dvy
 
@@ -64,12 +69,12 @@ function solve!(f, Ex, Ey, hf::OperatorHF, dt)
 
     for j in axes(f, 2)
         fs .= f[:, j, :]
-        fnsvy[:, j, :] .= mesh.vy[j] .* fs ./ mesh.vx
+        fnsvy[:, j, :] .= hf.mesh.vy[j] .* fs ./ hf.mesh.vx
         fs .= fft(fs, 2)
-        fs .*= exp.(-1im .* mesh.vx .* kx' * dt)
+        fs .*= exp.(-1im .* hf.mesh.vx .* hf.kx' * dt)
         fs .= ifft(fs, 2)
         f[:, j, :] .= real(fs)
-        fnp1vy[:, j, :] .= mesh.vy[j] * real(fs) ./ mesh.vx
+        fnp1vy[:, j, :] .= hf.mesh.vy[j] * real(fs) ./ hf.mesh.vx
     end
 
     # Calculate updated charge densities
@@ -77,22 +82,17 @@ function solve!(f, Ex, Ey, hf::OperatorHF, dt)
     rhon = vec(sum(f; dims=[1, 2])) .* dvx .* dvy
     rhonvy = vec(sum(fnp1vy; dims=[1, 2])) .* dvx .* dvy
 
-    # Compute current and update electric fields
-    k_mod = copy(kx)
-    k_mod[1] = 1  # Avoid division by zero for DC component
 
-    # Update Ex field
-    rhs = (1 ./ (1im * k_mod)) .* fft(rhon .- rhoh)
+    rhs = (1 ./ (1im * hf.kmod)) .* fft(rhon .- rhoh)
     Ef = fft(Ex)
     Ef .+= rhs
-    Ef[1] = 0  # Set DC component to zero
+    Ef[1] = 0  
     Ex .= real(ifft(Ef))
 
-    # Update Ey field
-    rhs = (1 ./ (1im * k_mod)) .* fft(rhonvy .- rhohvy)
+    rhs = (1 ./ (1im * hf.kmod)) .* fft(rhonvy .- rhohvy)
     Ef = fft(Ey)
     Ef .+= rhs
-    Ef[1] = 0  # Set DC component to zero
+    Ef[1] = 0  
     Ey .= real(ifft(Ef))
 end
 

@@ -5,7 +5,8 @@ using Printf
 using BenchmarkTools
 using .Threads
 import VlasovAmpereEnergyPreserving: poisson!, updateg, semilag_d2, compute_diag
-import VlasovAmpereEnergyPreserving: HE2!, HB2!, updateg!, Mesh1D2V, hf!
+import VlasovAmpereEnergyPreserving: HE2!, HB2!, updateg!, Mesh1D2V, solve!, poisson!
+import VlasovAmpereEnergyPreserving: OperatorHF
 
 
 
@@ -45,7 +46,7 @@ function vm_lie_2(tmax)
     dvx = mesh.dvx
     dvy = mesh.dvy
     rho = vec(sum(f; dims=(1, 2))) * dvx * dvy
-    Ex .= poisson(rho, x, kx)
+    poisson!(Ex, rho, kx)
     B = α * cos.(kinit .* x)
 
     kvx = collect(2π / (vxmax - vxmin) * fftfreq(nvx, nvx))
