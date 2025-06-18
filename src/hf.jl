@@ -3,6 +3,13 @@ struct OperatorHF{T}
     mesh :: AbstractMesh
     kx :: Vector{T}
     kmod :: Vector{T}
+    ft :: Matrix{Complex{T}}
+    rhoh :: Vector{T}
+    rhohvy :: Vector{T}
+    rhon :: Vector{T}
+    rhonvy :: Vector{T}
+    rhs :: Vector{Complex{T}}
+    Ef :: Vector{Complex{T}}
 
     function OperatorHF( mesh :: Mesh1D2V{T} ) where T
 
@@ -16,6 +23,55 @@ struct OperatorHF{T}
 
 end
 
+# """
+# solve the subsystem
+# 
+# df/dt + vx df/dx = 0
+# dEx/dt = -Jx
+# dEy/dt = -Jy
+# dB/dt=drx/dt=dry/dt=0
+# """
+function solve!(f, Ex, Ey, hf::OperatorHF, dt)
+
+    nvx, nvy, nx = size(f)
+
+    dvx = hf.mesh.dvx
+    dvy = hf.mesh.dvy
+
+
+    # Initialize arrays
+    fnsvy = similar(f)
+    fnp1vy = similar(f)
+
+    rhoh = vec(sum(f; dims=[1, 2])) .* dvx .* dvy
+
+    for j in axes(f, 2)
+        hf.ft .= f[:, j, :]
+        fnsvy[:, j, :] .= hf.mesh.vy[j] .* hf.ft ./ hf.mesh.vx
+        hf.ft .= fft(hf.ft, 2)
+        hf.ft .*= exp.(-1im .* hf.mesh.vx .* hf.kx' * dt)
+        hf.ft .= ifft(hf.ft, 2)
+        f[:, j, :] .= real(hf.ft)
+        fnp1vy[:, j, :] .= hf.mesh.vy[j] * real(hf.ft) ./ hf.mesh.vx
+    end
+
+    rhon = vec(sum(f; dims=[1, 2])) .* dvx .* dvy
+    rhohvy = vec(sum(fnsvy; dims=[1, 2])) .* dvx .* dvy
+    rhonvy = vec(sum(fnp1vy; dims=[1, 2])) .* dvx .* dvy
+
+
+    rhs = (1 ./ (1im * hf.kmod)) .* fft(rhon .- rhoh)
+    Ef = fft(Ex)
+    Ef .+= rhs
+    Ef[1] = 0  
+    Ex .= real(ifft(Ef))
+
+    rhs = (1 ./ (1im * hf.kmod)) .* fft(rhonvy .- rhohvy)
+    Ef = fft(Ey)
+    Ef .+= rhs
+    Ef[1] = 0  
+    Ey .= real(ifft(Ef))
+end
 
 function hf!(
     f::Matrix{Float64},
@@ -44,57 +100,6 @@ function hf!(
     E .= real(ifft(Ef))
 end
 
-# """
-# solve the subsystem
-# 
-# df/dt + vx df/dx = 0
-# dEx/dt = -Jx
-# dEy/dt = -Jy
-# dB/dt=drx/dt=dry/dt=0
-# """
-function solve!(f, Ex, Ey, hf::OperatorHF, dt)
-
-    nvx, nvy, nx = size(f)
-
-    dvx = hf.mesh.dvx
-    dvy = hf.mesh.dvy
-
-    rhoh = vec(sum(f; dims=[1, 2])) .* dvx .* dvy
-
-    # Initialize arrays
-    fnsvy = similar(f)
-    fnp1vy = similar(f)
-
-    fs = complex(zeros(nvx, nx))
-
-    for j in axes(f, 2)
-        fs .= f[:, j, :]
-        fnsvy[:, j, :] .= hf.mesh.vy[j] .* fs ./ hf.mesh.vx
-        fs .= fft(fs, 2)
-        fs .*= exp.(-1im .* hf.mesh.vx .* hf.kx' * dt)
-        fs .= ifft(fs, 2)
-        f[:, j, :] .= real(fs)
-        fnp1vy[:, j, :] .= hf.mesh.vy[j] * real(fs) ./ hf.mesh.vx
-    end
-
-    # Calculate updated charge densities
-    rhohvy = vec(sum(fnsvy; dims=[1, 2])) .* dvx .* dvy
-    rhon = vec(sum(f; dims=[1, 2])) .* dvx .* dvy
-    rhonvy = vec(sum(fnp1vy; dims=[1, 2])) .* dvx .* dvy
-
-
-    rhs = (1 ./ (1im * hf.kmod)) .* fft(rhon .- rhoh)
-    Ef = fft(Ex)
-    Ef .+= rhs
-    Ef[1] = 0  
-    Ex .= real(ifft(Ef))
-
-    rhs = (1 ./ (1im * hf.kmod)) .* fft(rhonvy .- rhohvy)
-    Ef = fft(Ey)
-    Ef .+= rhs
-    Ef[1] = 0  
-    Ey .= real(ifft(Ef))
-end
 
 #=
 function [ f, Ex, Ey ] = hf(dt,dvx,dvy,Nvx,Nvy,Nx,Vx,vy,kx,k,f,Ex,Ey)
