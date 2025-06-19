@@ -11,8 +11,8 @@ dB/dt  = 0
 """
 
 function hf_lapenta2d!(
-    f::AbstractArray{T,3}, kx::AbstractVector, mesh::Mesh1D2V, dt::Real
-) where {T}
+        f::AbstractArray{T, 3}, kx::AbstractVector, mesh::Mesh1D2V, dt::Real
+    ) where {T}
     nvx, nvy, nx = size(f)
 
     fs = complex(zeros(nvx, nx))
@@ -25,6 +25,7 @@ function hf_lapenta2d!(
 
         f[:, j, :] .= real(fs)
     end
+    return
 end
 
 #=

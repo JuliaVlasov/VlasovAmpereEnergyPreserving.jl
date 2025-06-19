@@ -51,7 +51,7 @@ function HE_lapenta2d!(f, Ex, Ey, mesh::Mesh1D2V, dt)
     end
 
     Ex .= 2 .* Exnew .- Ex
-    Ey .= 2 .* Eynew .- Ey
+    return Ey .= 2 .* Eynew .- Ey
 end
 #=
 function [ fn,Ex,Ey ] = HE_lapenta2d(fn,vx,vy,Ex,Ey,Nvx,Nvy,dvx,dvy,Nx,dx,dt,d)

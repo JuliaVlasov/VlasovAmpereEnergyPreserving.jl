@@ -1,4 +1,3 @@
-
 #=
 function diag = compute_diag(f,B,Ey,Ex,gy,vx,vy,ry,rx,nx,nvx,nvy,dx,t)
 
@@ -34,28 +33,28 @@ function compute_diag(f, Ex, Ey, B, rx, ry, mesh::Mesh1D2V, t)
     vx = mesh.vx
     vy = mesh.vy
     dx = mesh.dx
-    dvx=mesh.dvx
-    dvy=mesh.dvy
-    dxv=dx*dvx*dvy
-    kin=0
+    dvx = mesh.dvx
+    dvy = mesh.dvy
+    dxv = dx * dvx * dvy
+    kin = 0
 
     for k in axes(f, 3), i in eachindex(vx), j in eachindex(vy)
-        kin += (vx[i]*vx[i]+vy[j]*vy[j]) * f[i, j, k]
+        kin += (vx[i] * vx[i] + vy[j] * vy[j]) * f[i, j, k]
     end
 
-    kin=0.5*kin*dxv;
+    kin = 0.5 * kin * dxv
 
     diag = Float64[]
     push!(diag, t)
-    push!(diag, dx*sum(B .* B))
-    push!(diag, dx*sum(Ex .* Ex))
-    push!(diag, dx*sum(Ey .* Ey))
+    push!(diag, dx * sum(B .* B))
+    push!(diag, dx * sum(Ex .* Ex))
+    push!(diag, dx * sum(Ey .* Ey))
     push!(diag, kin)
-    push!(diag, sum(f)*dxv)
-    push!(diag, kin+rx^2+ry^2+0.5*dx*sum(B .* B))
+    push!(diag, sum(f) * dxv)
+    push!(diag, kin + rx^2 + ry^2 + 0.5 * dx * sum(B .* B))
     push!(diag, rx^2)
     push!(diag, ry^2)
-    push!(diag, kin+0.5dx*sum(Ex .* Ex)+0.5dx*sum(Ey .* Ey)+0.5dx*sum(B .* B))
+    push!(diag, kin + 0.5dx * sum(Ex .* Ex) + 0.5dx * sum(Ey .* Ey) + 0.5dx * sum(B .* B))
 
     names = (
         "time",
@@ -69,5 +68,5 @@ function compute_diag(f, Ex, Ey, B, rx, ry, mesh::Mesh1D2V, t)
         "RySquare",
         "TotalEnergy2",
     )
-    Dict(zip(names, diag))
+    return Dict(zip(names, diag))
 end

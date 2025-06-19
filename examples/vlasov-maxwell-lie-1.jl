@@ -30,12 +30,12 @@ function vm_lie_1(tmax)
     dvy = mesh.dvy
 
     α = 0.0001
-    σ1 = 0.02/sqrt(2)
-    σ2 = sqrt(12)*σ1
+    σ1 = 0.02 / sqrt(2)
+    σ2 = sqrt(12) * σ1
     for i in eachindex(vx), j in eachindex(vy), k in eachindex(x)
         f[i, j, k] =
-            exp(-0.5*vx[i]^2/σ1^2) * exp(-0.5*vy[j]^2/σ2^2) * (1 + α*cos(kinit*x[k])) /
-            (2π*σ1*σ2)
+            exp(-0.5 * vx[i]^2 / σ1^2) * exp(-0.5 * vy[j]^2 / σ2^2) * (1 + α * cos(kinit * x[k])) /
+            (2π * σ1 * σ2)
     end
 
     Ex = zeros(nx)
@@ -46,12 +46,12 @@ function vm_lie_1(tmax)
     kvx = collect(2π / (vxmax - vxmin) * fftfreq(nvx, nvx))
     kvy = collect(2π / (vymax - vymin) * fftfreq(nvy, nvy))
 
-    rho = vec(sum(f; dims=(1, 2))) * dvx * dvy
+    rho = vec(sum(f; dims = (1, 2))) * dvx * dvy
     poisson!(Ex, rho, kx)
     B = α * cos.(kinit .* x)
 
-    rx = sqrt(0.5*sum(Ex .* Ex)*dx+1.0)
-    ry = sqrt(0.5*sum(Ey .* Ey)*dx+1.0)
+    rx = sqrt(0.5 * sum(Ex .* Ex) * dx + 1.0)
+    ry = sqrt(0.5 * sum(Ey .* Ey) * dx + 1.0)
 
     gx, gy = updateg(Ex, Ey, rx, ry)
 
@@ -62,7 +62,7 @@ function vm_lie_1(tmax)
 
     hf = OperatorHF(mesh)
 
-    while abs(t - tmax) > 1e-10
+    while abs(t - tmax) > 1.0e-10
 
         solve!(f, Ex, Ey, hf, dt)
         updateg!(gx, gy, Ex, Ey, rx, ry)
@@ -81,4 +81,3 @@ function vm_lie_1(tmax)
 
     return vcat(DataFrame.(diags)...)
 end
-

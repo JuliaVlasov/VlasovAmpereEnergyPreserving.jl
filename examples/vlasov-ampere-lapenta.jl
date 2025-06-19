@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# # Vlasov-Ampere 
+# # Vlasov-Ampere
 #
 # method : **SAV**
 
@@ -14,19 +14,19 @@ import VlasovAmpereEnergyPreserving: hf_lapenta!, HE_lapenta!
 function va_lapenta(nx, nv, tmax, dt, α)
     kk = 0.5
     xmin = 0
-    xmax = 2π/kk
-    dx = (xmax - xmin)/nx
-    x = collect(LinRange(xmin, xmax, nx+1)[1:(end - 1)])
+    xmax = 2π / kk
+    dx = (xmax - xmin) / nx
+    x = collect(LinRange(xmin, xmax, nx + 1)[1:(end - 1)])
 
     # Wavenumbers
-    kx = collect(2π/(xmax-xmin) .* fftfreq(nx, nx))
+    kx = collect(2π / (xmax - xmin) .* fftfreq(nx, nx))
 
     # Velocity mesh
     vmin = -14
     vmax = 14
-    dv = (vmax - vmin)/nv
-    v = collect(LinRange(vmin, vmax, nv+1)[1:(end - 1)])
-    kv = collect(2π/(vmax-vmin) .* fftfreq(nv, nv))
+    dv = (vmax - vmin) / nv
+    v = collect(LinRange(vmin, vmax, nv + 1)[1:(end - 1)])
+    kv = collect(2π / (vmax - vmin) .* fftfreq(nv, nv))
 
     # Time mesh
     t = 0
@@ -34,12 +34,12 @@ function va_lapenta(nx, nv, tmax, dt, α)
     tabt = Float64[0]
 
     # Initial condition
-    feq = 1/√(2π) * exp.(-0.5 * v .^ 2)
+    feq = 1 / √(2π) * exp.(-0.5 * v .^ 2)
 
     mass_hot = sum(feq) * dv
     feq = feq / mass_hot
     fn = feq .* (1 .+ α * cos.(kk * x'))
-    rho = vec(sum(fn; dims=1) * dv .- 1)
+    rho = vec(sum(fn; dims = 1) * dv .- 1)
     E = zeros(nx)
     poisson!(E, rho, kx)
     r = √(0.5 * sum(E .^ 2) * dx)
@@ -57,7 +57,7 @@ function va_lapenta(nx, nv, tmax, dt, α)
     diff_sav = Float64[0]
     diff_poisson = Float64[0]
     d = 2
-    rhoh = vec(sum(fn; dims=1)) .* dv
+    rhoh = vec(sum(fn; dims = 1)) .* dv
 
     fn = feq .* (1 .+ 0.001 * cos.(kk * x'))
     r = √(0.5 * sum(E .^ 2) * dx)
@@ -69,14 +69,14 @@ function va_lapenta(nx, nv, tmax, dt, α)
         t += dt
         mod(iter, 100) == 0 && println(t)
 
-        hf_lapenta!(fn, E, dt/2, dv, v, kx)
+        hf_lapenta!(fn, E, dt / 2, dv, v, kx)
         HE_lapenta!(fn, E, v, nv, kv, dv, nx, dx, dt)
-        hf_lapenta!(fn, E, dt/2, dv, v, kx)
+        hf_lapenta!(fn, E, dt / 2, dv, v, kx)
 
         push!(tabt, iter * dt)
         push!(enelec, 0.5 * (dx * sum(E .^ 2)))
         Ef = fft(E)
-        rho = vec(sum(fn; dims=1)) * dv .- 1
+        rho = vec(sum(fn; dims = 1)) * dv .- 1
         poisson!(Ep, rho, kx)
         push!(diff_poisson, norm(Ep - E))
         modes = abs.(Ef[2:10])
@@ -87,7 +87,7 @@ function va_lapenta(nx, nv, tmax, dt, α)
         push!(diff_sav, r - √(0.5 * sum(E .^ 2) * dx))
     end
 
-    tabt, enelec, etot, diff_poisson, fn
+    return tabt, enelec, etot, diff_poisson, fn
 end
 
 # +
@@ -98,9 +98,9 @@ dt = 0.2
 α = 0.001
 @time tabt, enelec, etot, diff_poisson, fn = va_lapenta(nx, nv, tmax, dt, α)
 
-plot(tabt, enelec; yaxis=:log)
+plot(tabt, enelec; yaxis = :log)
 line, ω, = fit_complex_frequency(tabt, enelec)
-plot!(tabt, line; yaxis=:log)
+plot!(tabt, line; yaxis = :log)
 title!("ω = $(imag(ω))")
 
 # -

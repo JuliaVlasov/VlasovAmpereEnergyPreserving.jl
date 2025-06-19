@@ -32,23 +32,23 @@ function lapenta_2d(tmax)
     dvx = mesh.dvx
     dvy = mesh.dvy
 
-    kx = collect(2π/(xmax-xmin) * fftfreq(nx, nx))
+    kx = collect(2π / (xmax - xmin) * fftfreq(nx, nx))
 
     f = zeros(nvx, nvy, nx)
 
     α = 0.0001
-    σ1 = 0.02/sqrt(2)
-    σ2 = sqrt(12)*σ1
+    σ1 = 0.02 / sqrt(2)
+    σ2 = sqrt(12) * σ1
     for i in eachindex(vx), j in eachindex(vy), k in eachindex(x)
         f[i, j, k] =
-            exp(-0.5*vx[i]^2/σ1^2) * exp(-0.5*vy[j]^2/σ2^2) * (1 + α*cos(kinit*x[k])) /
-            (2π*σ1*σ2)
+            exp(-0.5 * vx[i]^2 / σ1^2) * exp(-0.5 * vy[j]^2 / σ2^2) * (1 + α * cos(kinit * x[k])) /
+            (2π * σ1 * σ2)
     end
 
     Ex = zeros(nx)
     Ey = zeros(nx)
     B = zeros(nx)
-    rho = vec(sum(f; dims=(1, 2))) * dvx * dvy
+    rho = vec(sum(f; dims = (1, 2))) * dvx * dvy
     poisson!(Ex, rho, kx)
     B = α * cos.(kinit .* x)
 
@@ -64,7 +64,7 @@ function lapenta_2d(tmax)
 
     diags = [compute_diag(f, Ex, Ey, B, rx, ry, mesh, time)]
 
-    while abs(time - tmax) > 1e-10
+    while abs(time - tmax) > 1.0e-10
         hf_lapenta2d!(f, kx, mesh, dt)
         HE_lapenta2d!(f, Ex, Ey, mesh, dt)
         HB_lapenta2d!(f, Ex, Ey, B, kx, kvx, kvy, mesh, dt)
@@ -77,4 +77,3 @@ function lapenta_2d(tmax)
 
     return vcat(DataFrame.(diags)...)
 end
-

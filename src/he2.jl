@@ -18,12 +18,12 @@ function HE2!(f, Ex, Ey, gx, gy, rx, ry, mesh, dt)
     rho = zeros(nx)
 
     for i in 1:nx
-        Jx[i]=0.0
-        Jy[i]=0.0
-        rho[i]=0.0;
+        Jx[i] = 0.0
+        Jy[i] = 0.0
+        rho[i] = 0.0
         for j in 1:nvx, k in 1:nvy
-            Jx[i] += mesh.vx[j]*f[j, k, i]
-            Jy[i] += mesh.vy[k]*f[j, k, i]
+            Jx[i] += mesh.vx[j] * f[j, k, i]
+            Jy[i] += mesh.vy[k] * f[j, k, i]
             rho[i] += f[j, k, i]
         end
     end
@@ -34,15 +34,15 @@ function HE2!(f, Ex, Ey, gx, gy, rx, ry, mesh, dt)
 
     updateg!(gx, gy, Ex, Ey, rx, ry)
 
-    denom=1+(dt*dt/8.0)*sum(rho .* gx .^ 2)*dx;
-    rxnp1=(rx-0.5*dt*sum(gx .* Jx)*dx-(dt*dt/8.0)*rx*sum(rho .* gx .^ 2)*dx)/denom;
-    rxdemi=rx/denom-(0.25*dt/denom)*sum(gx .* Jx)*dx;
-    Exnew=rxdemi*gx;
+    denom = 1 + (dt * dt / 8.0) * sum(rho .* gx .^ 2) * dx
+    rxnp1 = (rx - 0.5 * dt * sum(gx .* Jx) * dx - (dt * dt / 8.0) * rx * sum(rho .* gx .^ 2) * dx) / denom
+    rxdemi = rx / denom - (0.25 * dt / denom) * sum(gx .* Jx) * dx
+    Exnew = rxdemi * gx
 
-    denom=1+(dt*dt/8.0)*sum(rho .* gy .^ 2)*dx;
-    rynp1=(ry-0.5*dt*sum(Jy .* gy)*dx-(dt*dt/8.0)*ry*sum(rho .* gy .^ 2)*dx)/denom;
-    rydemi=ry/denom-(0.25*dt/denom)*sum(gy .* Jy)*dx;
-    Eynew=rydemi*gy;
+    denom = 1 + (dt * dt / 8.0) * sum(rho .* gy .^ 2) * dx
+    rynp1 = (ry - 0.5 * dt * sum(Jy .* gy) * dx - (dt * dt / 8.0) * ry * sum(rho .* gy .^ 2) * dx) / denom
+    rydemi = ry / denom - (0.25 * dt / denom) * sum(gy .* Jy) * dx
+    Eynew = rydemi * gy
 
     fvx = zeros(nvx)
     for j in 1:nvy, i in 1:nx
@@ -58,7 +58,7 @@ function HE2!(f, Ex, Ey, gx, gy, rx, ry, mesh, dt)
         f[j, :, i] .= fvy
     end
 
-    rxnp1, rynp1
+    return rxnp1, rynp1
 end
 #=
 function [ fn,rx,ry, gx, gy ] = HE2(fn,vx,vy,rx,gx,Ex,ry,gy,Ey,Nvx,Nvy,dvx,dvy,Nx,dx,x,dt,d)

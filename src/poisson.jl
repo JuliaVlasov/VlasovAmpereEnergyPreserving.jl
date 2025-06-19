@@ -21,5 +21,5 @@ function poisson!(Ex, rho, kx)
         Ef[i] = Ef[i] / (1im * kx[i])
     end
     Ef[1] = 0
-    Ex .= real(ifft(Ef))
+    return Ex .= real(ifft(Ef))
 end

@@ -16,46 +16,46 @@ function HB2!(f, Ey, B, gx, gy, rx, ry, kx, kvx, kvy, mesh, dt)
     dxgy = zeros(nx)
 
     for i in 2:(nx - 1)
-        dxgy[i]=(gy[i + 1]-gy[i - 1]) / (2dx)
+        dxgy[i] = (gy[i + 1] - gy[i - 1]) / (2dx)
     end
-    dxgy[1]=(gy[2]-gy[nx])/(2dx)
-    dxgy[nx]=(gy[1]-gy[nx - 1])/(2dx)
+    dxgy[1] = (gy[2] - gy[nx]) / (2dx)
+    dxgy[nx] = (gy[1] - gy[nx - 1]) / (2dx)
 
-    denom=1+(dt*dt/8.0)*sum(dxgy .* dxgy)*dx
-    rynp1=(ry+0.5*dt*sum(B .* dxgy)*dx-(dt*dt/8.0)*ry*sum(dxgy .* dxgy)*dx)/denom;
-    rydemi=ry/denom+0.25*dt*sum(B .* dxgy)*dx/denom;
+    denom = 1 + (dt * dt / 8.0) * sum(dxgy .* dxgy) * dx
+    rynp1 = (ry + 0.5 * dt * sum(B .* dxgy) * dx - (dt * dt / 8.0) * ry * sum(dxgy .* dxgy) * dx) / denom
+    rydemi = ry / denom + 0.25 * dt * sum(B .* dxgy) * dx / denom
 
-    Bnp1=B-dt*rydemi*dxgy
-    Bdemi=B-0.5*dt*rydemi*dxgy
+    Bnp1 = B - dt * rydemi * dxgy
+    Bdemi = B - 0.5 * dt * rydemi * dxgy
 
     dxBdemi = zeros(nx)
     for i in 2:(nx - 1)
-        dxBdemi[i]=(Bdemi[i + 1]-Bdemi[i - 1])/(2dx)
+        dxBdemi[i] = (Bdemi[i + 1] - Bdemi[i - 1]) / (2dx)
     end
 
 
-    dxBdemi[1]=(Bdemi[2]-Bdemi[nx])/(2dx)
-    dxBdemi[nx]=(Bdemi[1]-Bdemi[nx - 1])/(2dx)
+    dxBdemi[1] = (Bdemi[2] - Bdemi[nx]) / (2dx)
+    dxBdemi[nx] = (Bdemi[1] - Bdemi[nx - 1]) / (2dx)
 
-    Eynp1=Ey-dt*dxBdemi
+    Eynp1 = Ey - dt * dxBdemi
 
     ft = complex(f)
 
     ft .= fft(f, 1)
     for l in 1:nx, j in 1:nvy, i in 1:nvx
-        ft[i, j, l] *= exp(-1im*kvx[i]*mesh.vy[j]*tan(Bdemi[l]*hdt))
+        ft[i, j, l] *= exp(-1im * kvx[i] * mesh.vy[j] * tan(Bdemi[l] * hdt))
     end
     ft .= ifft(ft, 1)
 
     ft .= fft(ft, 2)
     for l in 1:nx, i in 1:nvx, j in 1:nvy
-        ft[i, j, l] *= exp(1im*kvy[j]*mesh.vx[i]*sin(Bdemi[l]*dt))
+        ft[i, j, l] *= exp(1im * kvy[j] * mesh.vx[i] * sin(Bdemi[l] * dt))
     end
     ft .= ifft(ft, 2)
 
     ft .= fft(ft, 1)
     for l in 1:nx, j in 1:nvy, i in 1:nvx
-        ft[i, j, l] *= exp(-1im*kvx[i]*mesh.vy[j]*tan(Bdemi[l]*hdt))
+        ft[i, j, l] *= exp(-1im * kvx[i] * mesh.vy[j] * tan(Bdemi[l] * hdt))
     end
     ft .= ifft(ft, 1)
 

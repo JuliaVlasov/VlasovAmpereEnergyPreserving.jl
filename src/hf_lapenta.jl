@@ -11,6 +11,5 @@ export hf_lapenta
 function hf_lapenta!(f, E, dt, dv, v, kx)
     f_hat = fft(f, 2)
     f_hat .*= exp.(-im * v .* kx' * dt)
-    f .= real(ifft(f_hat, 2))
+    return f .= real(ifft(f_hat, 2))
 end
-

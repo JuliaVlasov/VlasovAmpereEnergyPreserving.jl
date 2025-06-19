@@ -14,24 +14,24 @@ function HB!(f, Ey, B, mesh, kx, kvx, kvy, dt)
 
     ft = fft(f, 1)
     for l in 1:nx, j in 1:nvy, i in 1:nvx
-        ft[i, j, l] *= exp(-1im*kvx[i]*mesh.vy[j]*tan(B[l]*hdt)) 
+        ft[i, j, l] *= exp(-1im * kvx[i] * mesh.vy[j] * tan(B[l] * hdt))
     end
     ft .= ifft(ft, 1)
 
     ft .= fft(ft, 2)
     for l in 1:nx, i in 1:nvx, j in 1:nvy
-        ft[i, j, l] *= exp(1im*kvy[j]*mesh.vx[i]*sin(B[l]*dt))
+        ft[i, j, l] *= exp(1im * kvy[j] * mesh.vx[i] * sin(B[l] * dt))
     end
     ft .= ifft(ft, 2)
 
     ft .= fft(ft, 1)
     for l in 1:nx, j in 1:nvy, i in 1:nvx
-        ft[i, j, l] *= exp(-1im*kvx[i]*mesh.vy[j]*tan(B[l]*hdt)) 
+        ft[i, j, l] *= exp(-1im * kvx[i] * mesh.vy[j] * tan(B[l] * hdt))
     end
     ft .= ifft(ft, 1)
 
 
-    Ey .= Ey .- dt .* real(ifft(1im * kx .* fft(B)))
+    return Ey .= Ey .- dt .* real(ifft(1im * kx .* fft(B)))
 
 end
 
@@ -114,23 +114,23 @@ end
 =#
 
 function HB(
-    fn::Array{ComplexF64,3},
-    Ey::Vector{Float64},
-    B::Vector{Float64},
-    vx::Vector{Float64},
-    vy::Vector{Float64},
-    kk::Vector{Float64},
-    kkvx::Vector{Float64},
-    kkvy::Vector{Float64},
-    Nvx::Int,
-    Nvy::Int,
-    dvx::Float64,
-    dvy::Float64,
-    Nx::Int,
-    dt::Float64,
-    d::Int,
-    meth::Int,
-)
+        fn::Array{ComplexF64, 3},
+        Ey::Vector{Float64},
+        B::Vector{Float64},
+        vx::Vector{Float64},
+        vy::Vector{Float64},
+        kk::Vector{Float64},
+        kkvx::Vector{Float64},
+        kkvy::Vector{Float64},
+        Nvx::Int,
+        Nvy::Int,
+        dvx::Float64,
+        dvy::Float64,
+        Nx::Int,
+        dt::Float64,
+        d::Int,
+        meth::Int,
+    )
     if meth == 0
         # FFT-based method (Strang splitting)
         fn = fft(fn, 1)  # FFT along first dimension
@@ -138,7 +138,7 @@ function HB(
         # First tan(B*dt/2) term
         @inbounds Threads.@threads for l in 1:Nx
             Bdt = B[l] * dt
-            phase = -im * tan(Bdt/2)
+            phase = -im * tan(Bdt / 2)
             for j in 1:Nvy
                 vj = vy[j]
                 for i in 1:Nvx
@@ -168,7 +168,7 @@ function HB(
         # Second tan(B*dt/2) term
         @inbounds Threads.@threads for l in 1:Nx
             Bdt = B[l] * dt
-            phase = -im * tan(Bdt/2)
+            phase = -im * tan(Bdt / 2)
             for j in 1:Nvy
                 vj = vy[j]
                 for i in 1:Nvx
@@ -188,8 +188,8 @@ function HB(
             vj = vy[j]
             for i in 1:Nx
                 ft = @view fn[:, j, i]
-                dep = vj * tan(B[i]*dt/2) / (dt/2)
-                fn_temp[:, j, i] = semilag(ft, Nvx, dep, dt/2, dvx, d)
+                dep = vj * tan(B[i] * dt / 2) / (dt / 2)
+                fn_temp[:, j, i] = semilag(ft, Nvx, dep, dt / 2, dvx, d)
             end
         end
         fn .= fn_temp
@@ -199,7 +199,7 @@ function HB(
             vj = vx[j]
             for i in 1:Nx
                 ft = @view fn[j, :, i]
-                dep = -vj * sin(B[i]*dt) / dt
+                dep = -vj * sin(B[i] * dt) / dt
                 fn_temp[j, :, i] = semilag(ft, Nvy, dep, dt, dvy, d)
             end
         end
@@ -210,8 +210,8 @@ function HB(
             vj = vy[j]
             for i in 1:Nx
                 ft = @view fn[:, j, i]
-                dep = vj * tan(B[i]*dt/2) / (dt/2)
-                fn_temp[:, j, i] = semilag(ft, Nvx, dep, dt/2, dvx, d)
+                dep = vj * tan(B[i] * dt / 2) / (dt / 2)
+                fn_temp[:, j, i] = semilag(ft, Nvx, dep, dt / 2, dvx, d)
             end
         end
         fn .= fn_temp

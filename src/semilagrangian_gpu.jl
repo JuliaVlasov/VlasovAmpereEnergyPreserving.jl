@@ -13,8 +13,8 @@ function lagrange_interpolation_kernel(f, f_new, E, dt, dv, d, Nv)
         j = mod1(j, Nv)
 
         # Shared memory for stencil
-        j_ind = @cuStaticSharedMem(Int32, (2d+2,))
-        f_vals = @cuStaticSharedMem(Float64, (2d+2,))
+        j_ind = @cuStaticSharedMem(Int32, (2d + 2,))
+        f_vals = @cuStaticSharedMem(Float64, (2d + 2,))
 
         # Determine interpolation stencil indices
         for ii in (-d):(d + 1)
@@ -25,7 +25,7 @@ function lagrange_interpolation_kernel(f, f_new, E, dt, dv, d, Nv)
         sync_threads()
 
         # Load required values into shared memory
-        if threadIdx().x <= 2d+2
+        if threadIdx().x <= 2d + 2
             f_vals[threadIdx().x] = f[j_ind[threadIdx().x]]
         end
         sync_threads()
@@ -62,7 +62,7 @@ function semilag_gpu(f::CuArray{Float64}, E::Float64, dt::Float64, dv::Float64, 
     threads = min(256, Nv)
     blocks = cld(Nv, threads)
 
-    @cuda threads=threads blocks=blocks lagrange_interpolation_kernel(
+    @cuda threads = threads blocks = blocks lagrange_interpolation_kernel(
         f, f_new, E, dt, dv, d, Nv
     )
 
@@ -98,8 +98,8 @@ semilag(f, Nv, E, dt, dv, d);
 @time f_new = semilag(f, Nv, E, dt, dv, d);
 
 function semilag_multi_gpu(
-    fs::Vector{Vector{Float64}}, Es::Vector{Float64}, dt::Float64, dv::Float64, d::Int
-)
+        fs::Vector{Vector{Float64}}, Es::Vector{Float64}, dt::Float64, dv::Float64, d::Int
+    )
     # Create CUDA streams
     streams = [CuStream() for _ in 1:length(fs)]
 
@@ -112,7 +112,7 @@ function semilag_multi_gpu(
         Nv = length(fs[i])
         threads = min(256, Nv)
         blocks = cld(Nv, threads)
-        @cuda threads=threads blocks=blocks stream=streams[i]
+        @cuda threads = threads blocks = blocks stream = streams[i]
         lagrange_interpolation_kernel(f_gpus[i], f_news[i], Es[i], dt, dv, d, Nv)
     end
 

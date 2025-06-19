@@ -1,12 +1,12 @@
 # +
 function HE!(f, r, v, g, nv, kv, dv, nx, dx, dt)
-    J = vec(sum(v .* f; dims=1)) .* dv
-    rho = vec(sum(f; dims=1)) .* dv
+    J = vec(sum(v .* f; dims = 1)) .* dv
+    rho = vec(sum(f; dims = 1)) .* dv
     Jnpdemi = J .+ 0.25 * dt * r * g .* rho
     rnp1 =
-        (1/(1+(dt*dt/8) * sum(rho .* g .^ 2) * dx)) * (r-0.5 * dt * sum(g .* Jnpdemi) * dx)
+        (1 / (1 + (dt * dt / 8) * sum(rho .* g .^ 2) * dx)) * (r - 0.5 * dt * sum(g .* Jnpdemi) * dx)
 
-    enew = 0.5 * (rnp1+r) * g
+    enew = 0.5 * (rnp1 + r) * g
 
     u = zeros(nv)
     for i in eachindex(enew)
@@ -35,34 +35,34 @@ function HE!(f, rx, ry, B, gx, gy, kx, mesh::Mesh1D2V, dt)
     Jy = zeros(nx)
     rho = zeros(nx)
 
-    Jx = vec(sum(mesh.vx .* f; dims=[1, 2])) .* dvx .* dvy
-    Jy = vec(sum(mesh.vy' .* f; dims=[1, 2])) .* dvx .* dvy
-    rho = vec(sum(f; dims=[1, 2])) .* dvx .* dvy
+    Jx = vec(sum(mesh.vx .* f; dims = [1, 2])) .* dvx .* dvy
+    Jy = vec(sum(mesh.vy' .* f; dims = [1, 2])) .* dvx .* dvy
+    rho = vec(sum(f; dims = [1, 2])) .* dvx .* dvy
 
     Jxnpdemi = Jx + 0.25dt * rx * gx .* rho
 
-    denom=1+(dt*dt/8)*sum(rho .* gx .^ 2)*dx
+    denom = 1 + (dt * dt / 8) * sum(rho .* gx .^ 2) * dx
 
-    rxnp1=(rx-0.5dt*sum(gx .* Jx)*dx-(dt*dt/8)*rx*sum(rho .* gx .^ 2)*dx)/denom
+    rxnp1 = (rx - 0.5dt * sum(gx .* Jx) * dx - (dt * dt / 8) * rx * sum(rho .* gx .^ 2) * dx) / denom
 
-    Exnew=0.5*(rxnp1+rx)*gx;
+    Exnew = 0.5 * (rxnp1 + rx) * gx
 
     Jynpdemi = Jy + 0.25dt * ry * gy .* rho
     dxgy = real(ifft(1im * kx .* fft(gy)))
     dx2gy = real(ifft(-kx .* kx .* fft(gy)))
     dxB = real(ifft(1im * kx .* fft(B)))
-    denom = 1+(dt*dt/8)*sum(rho .* gy .^ 2)*dx+(dt*dt/8)*sum(dxgy .* dxgy)*dx
+    denom = 1 + (dt * dt / 8) * sum(rho .* gy .^ 2) * dx + (dt * dt / 8) * sum(dxgy .* dxgy) * dx
 
     rynp1 = ry - 0.5 * dt * sum(Jy .* gy) * dx
     rynp1 += 0.5dt * sum(B .* dxgy) * dx
-    rynp1 -= (dt*dt/8)*ry*sum(rho .* gy .^ 2)*dx
-    rynp1 -= (dt*dt/8)*ry*sum(dxgy .* dxgy)*dx
+    rynp1 -= (dt * dt / 8) * ry * sum(rho .* gy .^ 2) * dx
+    rynp1 -= (dt * dt / 8) * ry * sum(dxgy .* dxgy) * dx
 
     rynp1 /= denom
 
-    Eynew = 0.5 * (rynp1+ry) * gy
+    Eynew = 0.5 * (rynp1 + ry) * gy
 
-    faraday=real(ifft(1im*kx .* fft(Eynew)))
+    faraday = real(ifft(1im * kx .* fft(Eynew)))
 
     B .= B .- dt * faraday
 
@@ -78,7 +78,7 @@ function HE!(f, rx, ry, B, gx, gy, kx, mesh::Mesh1D2V, dt)
         f[j, :, i] .= semilag_d2(fvy, Eynew[i], dt, dvy)
     end
 
-    rxnp1, rynp1
+    return rxnp1, rynp1
 end
 
 #=
@@ -145,27 +145,27 @@ end
 =#
 
 function HE(
-    fn::Array{Float64,3},
-    vx::Vector{Float64},
-    vy::Vector{Float64},
-    Vx::Matrix{Float64},
-    Vy::Matrix{Float64},
-    rx::Float64,
-    gx::Vector{Float64},
-    ry::Float64,
-    gy::Vector{Float64},
-    B::Vector{Float64},
-    Nvx::Int,
-    Nvy::Int,
-    kk::Vector{Float64},
-    kv::Matrix{Float64},
-    dvx::Float64,
-    dvy::Float64,
-    Nx::Int,
-    dx::Float64,
-    dt::Float64,
-    d::Int,
-)
+        fn::Array{Float64, 3},
+        vx::Vector{Float64},
+        vy::Vector{Float64},
+        Vx::Matrix{Float64},
+        Vy::Matrix{Float64},
+        rx::Float64,
+        gx::Vector{Float64},
+        ry::Float64,
+        gy::Vector{Float64},
+        B::Vector{Float64},
+        Nvx::Int,
+        Nvy::Int,
+        kk::Vector{Float64},
+        kv::Matrix{Float64},
+        dvx::Float64,
+        dvy::Float64,
+        Nx::Int,
+        dx::Float64,
+        dt::Float64,
+        d::Int,
+    )
 
     # Pre-allocate arrays
     Jx = zeros(Nx)
@@ -174,9 +174,9 @@ function HE(
 
     # Compute moments (optimized with views and reduced allocations)
     @inbounds for i in 1:Nx
-        fn_slice = view(fn,:,:,i)
-        Jx[i] = sum(vx .* sum(fn_slice, dims=2)) * dvx * dvy
-        Jy[i] = sum(vy' .* sum(fn_slice, dims=1)) * dvx * dvy
+        fn_slice = view(fn, :, :, i)
+        Jx[i] = sum(vx .* sum(fn_slice, dims = 2)) * dvx * dvy
+        Jy[i] = sum(vy' .* sum(fn_slice, dims = 1)) * dvx * dvy
         rho[i] = sum(fn_slice) * dvx * dvy
     end
 
@@ -198,10 +198,10 @@ function HE(
     denom = 1 + (dt^2 / 8) * sum(rho .* gy .^ 2) * dx + (dt^2 / 8) * sum(dxgy .^ 2) * dx
     rynp1 =
         (
-            ry - 0.5 * dt * sum(Jy .* gy) * dx + 0.5 * dt * sum(B .* dxgy) * dx -
+        ry - 0.5 * dt * sum(Jy .* gy) * dx + 0.5 * dt * sum(B .* dxgy) * dx -
             (dt^2 / 8) * ry * sum(rho .* gy .^ 2) * dx -
             (dt^2 / 8) * ry * sum(dxgy .^ 2) * dx
-        ) / denom
+    ) / denom
     Eynew = 0.5 .* (rynp1 .+ ry) .* gy
 
     # Update B field

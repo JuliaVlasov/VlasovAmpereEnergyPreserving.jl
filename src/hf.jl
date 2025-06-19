@@ -1,23 +1,23 @@
 struct OperatorHF{T}
 
-    mesh :: AbstractMesh
-    kx :: Vector{T}
-    kmod :: Vector{T}
-    ft :: Matrix{Complex{T}}
-    rhoh :: Vector{T}
-    rhohvy :: Vector{T}
-    rhon :: Vector{T}
-    rhonvy :: Vector{T}
-    rhs :: Vector{Complex{T}}
-    Ef :: Vector{Complex{T}}
+    mesh::AbstractMesh
+    kx::Vector{T}
+    kmod::Vector{T}
+    ft::Matrix{Complex{T}}
+    rhoh::Vector{T}
+    rhohvy::Vector{T}
+    rhon::Vector{T}
+    rhonvy::Vector{T}
+    rhs::Vector{Complex{T}}
+    Ef::Vector{Complex{T}}
 
-    function OperatorHF( mesh :: Mesh1D2V{T} ) where T
+    function OperatorHF(mesh::Mesh1D2V{T}) where {T}
 
-       kx = collect(2π / (mesh.xmax - mesh.xmin) .* fftfreq(mesh.nx, mesh.nx))
-       kmod = copy(kx)
-       kmod[1] = 1  
+        kx = collect(2π / (mesh.xmax - mesh.xmin) .* fftfreq(mesh.nx, mesh.nx))
+        kmod = copy(kx)
+        kmod[1] = 1
 
-       new{T}(mesh, kx, kmod)
+        return new{T}(mesh, kx, kmod)
 
     end
 
@@ -25,7 +25,7 @@ end
 
 # """
 # solve the subsystem
-# 
+#
 # df/dt + vx df/dx = 0
 # dEx/dt = -Jx
 # dEy/dt = -Jy
@@ -43,7 +43,7 @@ function solve!(f, Ex, Ey, hf::OperatorHF, dt)
     fnsvy = similar(f)
     fnp1vy = similar(f)
 
-    rhoh = vec(sum(f; dims=[1, 2])) .* dvx .* dvy
+    rhoh = vec(sum(f; dims = [1, 2])) .* dvx .* dvy
 
     for j in axes(f, 2)
         hf.ft .= f[:, j, :]
@@ -55,37 +55,37 @@ function solve!(f, Ex, Ey, hf::OperatorHF, dt)
         fnp1vy[:, j, :] .= hf.mesh.vy[j] * real(hf.ft) ./ hf.mesh.vx
     end
 
-    rhon = vec(sum(f; dims=[1, 2])) .* dvx .* dvy
-    rhohvy = vec(sum(fnsvy; dims=[1, 2])) .* dvx .* dvy
-    rhonvy = vec(sum(fnp1vy; dims=[1, 2])) .* dvx .* dvy
+    rhon = vec(sum(f; dims = [1, 2])) .* dvx .* dvy
+    rhohvy = vec(sum(fnsvy; dims = [1, 2])) .* dvx .* dvy
+    rhonvy = vec(sum(fnp1vy; dims = [1, 2])) .* dvx .* dvy
 
 
     rhs = (1 ./ (1im * hf.kmod)) .* fft(rhon .- rhoh)
     Ef = fft(Ex)
     Ef .+= rhs
-    Ef[1] = 0  
+    Ef[1] = 0
     Ex .= real(ifft(Ef))
 
     rhs = (1 ./ (1im * hf.kmod)) .* fft(rhonvy .- rhohvy)
     Ef = fft(Ey)
     Ef .+= rhs
-    Ef[1] = 0  
-    Ey .= real(ifft(Ef))
+    Ef[1] = 0
+    return Ey .= real(ifft(Ef))
 end
 
 function hf!(
-    f::Matrix{Float64},
-    E::Vector{Float64},
-    dt::Float64,
-    dv::Float64,
-    v::Vector{Float64},
-    kx::Vector{Float64},
-)
-    rhoh = vec(sum(f; dims=1)) .* dv
+        f::Matrix{Float64},
+        E::Vector{Float64},
+        dt::Float64,
+        dv::Float64,
+        v::Vector{Float64},
+        kx::Vector{Float64},
+    )
+    rhoh = vec(sum(f; dims = 1)) .* dv
     ft = fft(f, 2)
     ft .*= exp.(-1im * v .* kx' * dt)
     f .= real(ifft(ft, 2))
-    rhon = vec(sum(f; dims=1)) .* dv
+    rhon = vec(sum(f; dims = 1)) .* dv
     Ef = fft(E)
     rhs = fft(rhon .- rhoh)
 
@@ -97,7 +97,7 @@ function hf!(
 
     Ef[1] = 0
 
-    E .= real(ifft(Ef))
+    return E .= real(ifft(Ef))
 end
 
 
@@ -143,4 +143,3 @@ Ey=real(ifft(Ef));
 
 end
 =#
-

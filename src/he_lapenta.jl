@@ -21,22 +21,22 @@ end
 export HE_lapenta!
 
 function HE_lapenta!(
-    f::Matrix{T},
-    E::Vector{T},
-    v::Vector{T},
-    nv::Int,
-    kv::Vector{T},
-    dv::T,
-    nx::Int,
-    dx::T,
-    dt::T,
-) where {T<:AbstractFloat}
+        f::Matrix{T},
+        E::Vector{T},
+        v::Vector{T},
+        nv::Int,
+        kv::Vector{T},
+        dv::T,
+        nx::Int,
+        dx::T,
+        dt::T,
+    ) where {T <: AbstractFloat}
 
     # Pre-allocate outputs
     fn1 = similar(f)
 
-    J = vec(sum(v .* f; dims=1)) .* dv
-    rho = vec(sum(f; dims=1)) .* dv
+    J = vec(sum(v .* f; dims = 1)) .* dv
+    rho = vec(sum(f; dims = 1)) .* dv
 
     dt2_rho4 = (dt^2) .* rho ./ 4
     dt2_rho2 = dt2_rho4 .* 2
@@ -47,13 +47,12 @@ function HE_lapenta!(
     Jnpdemi = J .+ 0.5 * dt .* Enew .* rho
     Enp1 = E .- dt .* Jnpdemi
 
-    # Semi-Lagrangian step 
+    # Semi-Lagrangian step
     for i in eachindex(Enew)
         ft = f[:, i]
         u1 = semilag_d2(ft, Enew[i], dt, dv)
         f[:, i] .= u1
     end
 
-    E .= Enp1
+    return E .= Enp1
 end
-
