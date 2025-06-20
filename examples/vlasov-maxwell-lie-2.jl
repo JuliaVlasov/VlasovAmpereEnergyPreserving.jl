@@ -4,11 +4,14 @@ using Printf
 using BenchmarkTools
 using .Threads
 import VlasovAmpereEnergyPreserving: poisson!, updateg, semilag_d2, compute_diag
-import VlasovAmpereEnergyPreserving: HE2!, HB2!, updateg!, Mesh1D2V, solve!, poisson!
-import VlasovAmpereEnergyPreserving: OperatorHF
+import VlasovAmpereEnergyPreserving: OperatorHF, OperatorHE2, OperatorHB2
+import VlasovAmpereEnergyPreserving: updateg!, Mesh1D2V, solve!, poisson!
 
 
 function vm_lie_2(tmax)
+
+    to = TimerOutput()
+
     nx = 16
     nvx = 47
     nvy = 47
@@ -62,22 +65,26 @@ function vm_lie_2(tmax)
     diags = [compute_diag(f, Ex, Ey, B, rx, ry, mesh, t)]
 
     hf = OperatorHF(mesh)
+    he2 = OperatorHE2(mesh)
+    hb2 = OperatorHB2(mesh)
 
     while abs(t - tmax) > 1.0e-10
         iter += 1
         t += dt
 
-        solve!(f, Ex, Ey, hf, dt)
+        @timeit to "HF" solve!(f, Ex, Ey, hf, dt)
         updateg!(gx, gy, Ex, Ey, rx, ry)
 
-        rx, ry = HE2!(f, Ex, Ey, gx, gy, rx, ry, mesh, dt)
+        @timeit to "HE2" rx, ry = solve!(f, Ex, Ey, gx, gy, rx, ry, he2, dt)
         updateg!(gx, gy, Ex, Ey, rx, ry)
 
-        rx, ry = HB2!(f, Ey, B, gx, gy, rx, ry, kx, kvx, kvy, mesh, dt)
+        @timeit to "HB2" rx, ry = solve!(f, Ey, B, gx, gy, rx, ry, hb2, dt)
         updateg!(gx, gy, Ex, Ey, rx, ry)
 
         push!(diags, compute_diag(f, Ex, Ey, B, rx, ry, mesh, t))
     end
+
+    show(to)
 
     return vcat(DataFrame.(diags)...)
 end

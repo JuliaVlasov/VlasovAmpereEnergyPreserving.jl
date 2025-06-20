@@ -1,3 +1,10 @@
+struct OperatorHE2{T}
+
+    mesh::Mesh1D2V{T}
+
+    OperatorHE2(mesh::Mesh1D2V{T}) where T = new{T}(mesh)
+
+end
 """
 solve the subsystem 
 df/dt + rxgx df/dvx + rygydf/dvy = 0
@@ -5,13 +12,13 @@ drx/dt=-0.5*int (gx Jx) dx
 dry/dt=-0.5*int (gy Jy) dx
 dEx/dt=dEy/dt=dB/dt =0
 """
-function HE2!(f, Ex, Ey, gx, gy, rx, ry, mesh, dt)
+function solve!(f, Ex, Ey, gx, gy, rx, ry, he2, dt)
 
     nvx, nvy, nx = size(f)
 
-    dx = mesh.dx
-    dvx = mesh.dvx
-    dvy = mesh.dvy
+    dx = he2.mesh.dx
+    dvx = he2.mesh.dvx
+    dvy = he2.mesh.dvy
 
     Jx = zeros(nx)
     Jy = zeros(nx)
@@ -22,8 +29,8 @@ function HE2!(f, Ex, Ey, gx, gy, rx, ry, mesh, dt)
         Jy[i] = 0.0
         rho[i] = 0.0
         for j in 1:nvx, k in 1:nvy
-            Jx[i] += mesh.vx[j] * f[j, k, i]
-            Jy[i] += mesh.vy[k] * f[j, k, i]
+            Jx[i] += he2.mesh.vx[j] * f[j, k, i]
+            Jy[i] += he2.mesh.vy[k] * f[j, k, i]
             rho[i] += f[j, k, i]
         end
     end

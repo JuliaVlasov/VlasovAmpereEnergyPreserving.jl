@@ -17,52 +17,81 @@ function HE!(f, r, v, g, nv, kv, dv, nx, dx, dt)
 
     return rnp1
 end
+
+
+export OperatorHE
+
+struct OperatorHE{T}
+
+    mesh::Mesh1D2V{T}
+    kx::Vector{T}
+    Jx::Vector{T}
+    Jy::Vector{T}
+    rho::Vector{T}
+
+
+    function OperatorHE(mesh::Mesh1D2V{T}) where T
+
+        kx = collect(2π / (mesh.xmax - mesh.xmin) .* fftfreq(mesh.nx, mesh.nx))
+        Jx = zeros(T, mesh.nx)
+        Jy = zeros(T, mesh.nx)
+        rho = zeros(T, mesh.nx)
+        new{T}( mesh, kx, Jx, Jy, rho)
+
+    end
+
+end
+
+
+
 """
 solve the subsystem 
+
+```math
 df/dt + rxgx df/dvx + rygydf/dvy = 0
 dB/dt = -d(ry gy)/dx 
 drx/dt=-0.5*int (gx Jx) dx
 dry/dt=-0.5*int (gy (Jy+dB/dx)) dx
 dEx/dt=dEy/dt=0
+```
+
 """
-function HE!(f, rx, ry, B, gx, gy, kx, mesh::Mesh1D2V, dt)
+function solve!(f, rx, ry, B, gx, gy, he::OperatorHE, dt)
+
     nvx, nvy, nx = size(f)
 
-    dx = mesh.dx
-    dvx = mesh.dvx
-    dvy = mesh.dvy
-    Jx = zeros(nx)
-    Jy = zeros(nx)
-    rho = zeros(nx)
+    dx = he.mesh.dx
+    dvx = he.mesh.dvx
+    dvy = he.mesh.dvy
 
-    Jx = vec(sum(mesh.vx .* f; dims = [1, 2])) .* dvx .* dvy
-    Jy = vec(sum(mesh.vy' .* f; dims = [1, 2])) .* dvx .* dvy
-    rho = vec(sum(f; dims = [1, 2])) .* dvx .* dvy
+    he.Jx .= vec(sum(he.mesh.vx .* f; dims = [1, 2])) .* dvx .* dvy
+    he.Jy .= vec(sum(he.mesh.vy' .* f; dims = [1, 2])) .* dvx .* dvy
+    he.rho .= vec(sum(f; dims = [1, 2])) .* dvx .* dvy
 
-    Jxnpdemi = Jx + 0.25dt * rx * gx .* rho
+    Jxnpdemi = he.Jx + 0.25dt * rx * gx .* he.rho
 
-    denom = 1 + (dt * dt / 8) * sum(rho .* gx .^ 2) * dx
+    denom = 1 + (dt * dt / 8) * sum(he.rho .* gx .^ 2) * dx
 
-    rxnp1 = (rx - 0.5dt * sum(gx .* Jx) * dx - (dt * dt / 8) * rx * sum(rho .* gx .^ 2) * dx) / denom
+    rxnp1 = (rx - 0.5dt * sum(gx .* he.Jx) * dx - (dt * dt / 8) * rx * sum(he.rho .* gx .^ 2) * dx) / denom
 
     Exnew = 0.5 * (rxnp1 + rx) * gx
 
-    Jynpdemi = Jy + 0.25dt * ry * gy .* rho
-    dxgy = real(ifft(1im * kx .* fft(gy)))
-    dx2gy = real(ifft(-kx .* kx .* fft(gy)))
-    dxB = real(ifft(1im * kx .* fft(B)))
-    denom = 1 + (dt * dt / 8) * sum(rho .* gy .^ 2) * dx + (dt * dt / 8) * sum(dxgy .* dxgy) * dx
+    Jynpdemi = he.Jy .+ 0.25dt * ry * gy .* he.rho
+    dxgy = real(ifft(1im * he.kx .* fft(gy)))
+    dx2gy = real(ifft(-he.kx .* he.kx .* fft(gy)))
+    dxB = real(ifft(1im * he.kx .* fft(B)))
+    denom = 1 + (dt * dt / 8) * sum(he.rho .* gy .^ 2) * dx + (dt * dt / 8) * sum(dxgy .* dxgy) * dx
 
-    rynp1 = ry - 0.5 * dt * sum(Jy .* gy) * dx
+    rynp1 = ry - 0.5 * dt * sum(he.Jy .* gy) * dx
     rynp1 += 0.5dt * sum(B .* dxgy) * dx
-    rynp1 -= (dt * dt / 8) * ry * sum(rho .* gy .^ 2) * dx
+    rynp1 -= (dt * dt / 8) * ry * sum(he.rho .* gy .^ 2) * dx
     rynp1 -= (dt * dt / 8) * ry * sum(dxgy .* dxgy) * dx
 
     rynp1 /= denom
 
     Eynew = 0.5 * (rynp1 + ry) * gy
 
-    faraday = real(ifft(1im * kx .* fft(Eynew)))
+    faraday = real(ifft(1im * he.kx .* fft(Eynew)))
 
     B .= B .- dt * faraday
 

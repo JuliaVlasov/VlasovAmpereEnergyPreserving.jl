@@ -1,37 +1,70 @@
+using .Threads
+
+struct OperatorHB{T}
+
+    mesh::Mesh1D2V{T}
+    kx::Vector{T}
+    kvx::Vector{T}
+    kvy::Vector{T}
+    ft::Array{Complex{T}, 3}
+
+    function OperatorHB(mesh::Mesh1D2V{T}) where T
+
+        kx = collect(2π / (mesh.xmax - mesh.xmin) * fftfreq(mesh.nx, mesh.nx))
+        kvx = collect(2π / (mesh.vxmax - mesh.vxmin) * fftfreq(mesh.nvx, mesh.nvx))
+        kvy = collect(2π / (mesh.vymax - mesh.vymin) * fftfreq(mesh.nvy, mesh.nvy))
+
+        ft = zeros(Complex{T}, (mesh.nvx, mesh.nvy, mesh.nx))
+
+        new{T}(mesh, kx, kvx, kvy, ft)
+
+    end
+
+end
 """
 solve the subsystem 
-df/dt+B Jv.df/dv=0 (with semi-Lagrangian + exact splitting) 
+
+```math
+df/dt+B Jv.df/dv=0 
 dEy/dt=-dB/dx
 dB/dt=drx/dt=dry/dt=0
+```
+
+first system equation is solved with semi-Lagrangian + exact splitting 
+
 """
-function HB!(f, Ey, B, mesh, kx, kvx, kvy, dt)
+function solve!(f, Ey, B, hb::OperatorHB, dt)
 
     nvx, nvy, nx = size(f)
 
     hdt = 0.5dt
 
-    ft = complex(f)
-
-    ft = fft(f, 1)
-    for l in 1:nx, j in 1:nvy, i in 1:nvx
-        ft[i, j, l] *= exp(-1im * kvx[i] * mesh.vy[j] * tan(B[l] * hdt))
+    hb.ft .= fft(f, 1)
+    @threads for l in 1:nx
+        for j in 1:nvy, i in 1:nvx
+           hb.ft[i, j, l] *= exp(-1im * hb.kvx[i] * hb.mesh.vy[j] * tan(B[l] * hdt))
+        end
     end
-    ft .= ifft(ft, 1)
+    hb.ft .= ifft(hb.ft, 1)
 
-    ft .= fft(ft, 2)
-    for l in 1:nx, i in 1:nvx, j in 1:nvy
-        ft[i, j, l] *= exp(1im * kvy[j] * mesh.vx[i] * sin(B[l] * dt))
+    hb.ft .= fft(hb.ft, 2)
+    @threads for l in 1:nx
+        for i in 1:nvx, j in 1:nvy
+            hb.ft[i, j, l] *= exp(1im * hb.kvy[j] * hb.mesh.vx[i] * sin(B[l] * dt))
+        end
     end
-    ft .= ifft(ft, 2)
+    hb.ft .= ifft(hb.ft, 2)
 
-    ft .= fft(ft, 1)
-    for l in 1:nx, j in 1:nvy, i in 1:nvx
-        ft[i, j, l] *= exp(-1im * kvx[i] * mesh.vy[j] * tan(B[l] * hdt))
+    hb.ft .= fft(hb.ft, 1)
+    @threads for l in 1:nx
+        for  j in 1:nvy, i in 1:nvx
+            hb.ft[i, j, l] *= exp(-1im * hb.kvx[i] * hb.mesh.vy[j] * tan(B[l] * hdt))
+        end
     end
-    ft .= ifft(ft, 1)
+    hb.ft .= ifft(hb.ft, 1)
 
 
-    return Ey .= Ey .- dt .* real(ifft(1im * kx .* fft(B)))
+    return Ey .= Ey .- dt .* real(ifft(1im .* hb.kx .* fft(B)))
 
 end
 

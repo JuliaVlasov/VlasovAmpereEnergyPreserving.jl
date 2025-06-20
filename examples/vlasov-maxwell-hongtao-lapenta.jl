@@ -10,6 +10,8 @@ using VlasovAmpereEnergyPreserving
 # Hongtao-Lapenta splitting
 
 function lapenta_2d(tmax)
+
+    to = TimerOutput()
     # Computational domain parameters
     nx = 16
     nvx = 49
@@ -65,15 +67,18 @@ function lapenta_2d(tmax)
     diags = [compute_diag(f, Ex, Ey, B, rx, ry, mesh, time)]
 
     while abs(time - tmax) > 1.0e-10
-        hf_lapenta2d!(f, kx, mesh, dt)
-        HE_lapenta2d!(f, Ex, Ey, mesh, dt)
-        HB_lapenta2d!(f, Ex, Ey, B, kx, kvx, kvy, mesh, dt)
+
+        @timeit to "HFLapenta2D" hf_lapenta2d!(f, kx, mesh, dt)
+        @timeit to "HELapenta2D" HE_lapenta2d!(f, Ex, Ey, mesh, dt)
+        @timeit to "HBLapenta2D" HB_lapenta2d!(f, Ex, Ey, B, kx, kvx, kvy, mesh, dt)
 
         iter += 1
         time += dt
 
         push!(diags, compute_diag(f, Ex, Ey, B, rx, ry, mesh, time))
     end
+
+    show(to)
 
     return vcat(DataFrame.(diags)...)
 end

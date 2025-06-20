@@ -1,3 +1,27 @@
+struct OperatorHB2{T}
+
+    mesh::Mesh1D2V{T}
+    kx::Vector{T}
+    kvx::Vector{T}
+    kvy::Vector{T}
+    ft::Array{Complex{T}, 3}
+
+    function OperatorHB2(mesh::Mesh1D2V{T}) where T
+
+        kx = collect(2π / (mesh.xmax - mesh.xmin) * fftfreq(mesh.nx, mesh.nx))
+        kvx = collect(2π / (mesh.vxmax - mesh.vxmin) * fftfreq(mesh.nvx, mesh.nvx))
+        kvy = collect(2π / (mesh.vymax - mesh.vymin) * fftfreq(mesh.nvy, mesh.nvy))
+
+        ft = zeros(Complex{T}, (mesh.nvx, mesh.nvy, mesh.nx))
+
+        new{T}(mesh, kx, kvx, kvy, ft)
+
+    end
+
+
+end
+
+
 """
 solve the subsystem 
 df/dt + B Jv . df/dv = 0
@@ -6,11 +30,11 @@ dEy/dt=-dB/dx
 dry/dt=-0.5*int (gy dB/dx)) dx = 0.5*int (d(gy)/dx B) dx 
 dEx/dt=0
 """
-function HB2!(f, Ey, B, gx, gy, rx, ry, kx, kvx, kvy, mesh, dt)
+function solve!(f, Ey, B, gx, gy, rx, ry, hb2::OperatorHB2, dt)
 
     nvx, nvy, nx = size(f)
 
-    dx = mesh.dx
+    dx = hb2.mesh.dx
     hdt = 0.5dt
 
     dxgy = zeros(nx)
@@ -39,27 +63,25 @@ function HB2!(f, Ey, B, gx, gy, rx, ry, kx, kvx, kvy, mesh, dt)
 
     Eynp1 = Ey - dt * dxBdemi
 
-    ft = complex(f)
-
-    ft .= fft(f, 1)
+    hb2.ft .= fft(f, 1)
     for l in 1:nx, j in 1:nvy, i in 1:nvx
-        ft[i, j, l] *= exp(-1im * kvx[i] * mesh.vy[j] * tan(Bdemi[l] * hdt))
+        hb2.ft[i, j, l] *= exp(-1im * hb2.kvx[i] * hb2.mesh.vy[j] * tan(Bdemi[l] * hdt))
     end
-    ft .= ifft(ft, 1)
+    hb2.ft .= ifft(hb2.ft, 1)
 
-    ft .= fft(ft, 2)
+    hb2.ft .= fft(hb2.ft, 2)
     for l in 1:nx, i in 1:nvx, j in 1:nvy
-        ft[i, j, l] *= exp(1im * kvy[j] * mesh.vx[i] * sin(Bdemi[l] * dt))
+        hb2.ft[i, j, l] *= exp(1im * hb2.kvy[j] * hb2.mesh.vx[i] * sin(Bdemi[l] * dt))
     end
-    ft .= ifft(ft, 2)
+    hb2.ft .= ifft(hb2.ft, 2)
 
-    ft .= fft(ft, 1)
+    hb2.ft .= fft(hb2.ft, 1)
     for l in 1:nx, j in 1:nvy, i in 1:nvx
-        ft[i, j, l] *= exp(-1im * kvx[i] * mesh.vy[j] * tan(Bdemi[l] * hdt))
+        hb2.ft[i, j, l] *= exp(-1im * hb2.kvx[i] * hb2.mesh.vy[j] * tan(Bdemi[l] * hdt))
     end
-    ft .= ifft(ft, 1)
+    hb2.ft .= ifft(hb2.ft, 1)
 
-    f .= real(ft)
+    f .= real(hb2.ft)
     Ey .= Eynp1
     B .= Bnp1
 

@@ -1,12 +1,14 @@
 using FFTW
 import VlasovAmpereEnergyPreserving: poisson!, updateg, semilag_d2, compute_diag
-import VlasovAmpereEnergyPreserving: hf!, HE!, HB!
 import VlasovAmpereEnergyPreserving: updateg!, Mesh1D2V
-import VlasovAmpereEnergyPreserving: OperatorHF, solve!
+import VlasovAmpereEnergyPreserving: OperatorHF, OperatorHE, OperatorHB, solve!
 using Plots
 using DataFrames
+using TimerOutputs
 
 function vm_lie_1(tmax)
+
+    to = TimerOutput()
     nx = 16
     nvx = 49
     nvy = 47
@@ -61,16 +63,18 @@ function vm_lie_1(tmax)
     diags = [compute_diag(f, Ex, Ey, B, rx, ry, mesh, t)]
 
     hf = OperatorHF(mesh)
+    he = OperatorHE(mesh)
+    hb = OperatorHB(mesh)
 
     while abs(t - tmax) > 1.0e-10
 
-        solve!(f, Ex, Ey, hf, dt)
+        @timeit to "HF" solve!(f, Ex, Ey, hf, dt)
         updateg!(gx, gy, Ex, Ey, rx, ry)
 
-        rx, ry = HE!(f, rx, ry, B, gx, gy, kx, mesh, dt)
+        @timeit to "HE" rx, ry = solve!(f, rx, ry, B, gx, gy, he, dt)
         updateg!(gx, gy, Ex, Ey, rx, ry)
 
-        HB!(f, Ey, B, mesh, kx, kvx, kvy, dt)
+        @timeit to "HB" solve!(f, Ey, B, hb, dt)
         updateg!(gx, gy, Ex, Ey, rx, ry)
 
         iter += 1
@@ -78,6 +82,8 @@ function vm_lie_1(tmax)
 
         push!(diags, compute_diag(f, Ex, Ey, B, rx, ry, mesh, t))
     end
+
+    show(to)
 
     return vcat(DataFrame.(diags)...)
 end
