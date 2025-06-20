@@ -9,7 +9,7 @@ struct OperatorLapentaHE{T}
     fvx::Vector{T}
     fvy::Vector{T}
 
-    function OperatorLapentaHE( mesh::Mesh1D2V{T}) where T
+    function OperatorLapentaHE(mesh::Mesh1D2V{T}) where {T}
 
         Jx = zeros(T, mesh.nx)
         Jy = zeros(T, mesh.nx)
@@ -19,11 +19,10 @@ struct OperatorLapentaHE{T}
         fvx = zeros(T, mesh.nvx)
         fvy = zeros(T, mesh.nvy)
 
-        new{T}(mesh, Jx, Jy, rho, Ex, Ey, fvx, fvy)
+        return new{T}(mesh, Jx, Jy, rho, Ex, Ey, fvx, fvy)
 
 
     end
-
 
 
 end
@@ -62,13 +61,13 @@ function solve!(f, Ex, Ey, he::OperatorLapentaHE, dt)
     he.Ex .= (1 ./ (1 .+ dt2_rho4)) .* Ex .- (dt ./ (2 .+ dt2_rho2)) .* he.Jx
     he.Ey .= (1 ./ (1 .+ dt2_rho4)) .* Ey .- (dt ./ (2 .+ dt2_rho2)) .* he.Jy
 
-    for j in axes(f, 2), i in eachindex(he.Ex)
+    for i in eachindex(he.Ex), j in axes(f, 2)
         he.fvx .= f[:, j, i]
         he.fvx .= semilag_d2(he.fvx, he.Ex[i], dt, dvx)
         f[:, j, i] .= he.fvx
     end
 
-    for k in axes(f, 1), i in eachindex(he.Ey)
+    for i in eachindex(he.Ey), k in axes(f, 1)
         he.fvy .= f[k, :, i]
         he.fvy .= semilag_d2(he.fvy, he.Ey[i], dt, dvy)
         f[k, :, i] .= he.fvy

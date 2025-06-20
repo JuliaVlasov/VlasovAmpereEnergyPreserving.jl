@@ -30,18 +30,17 @@ struct OperatorHE{T}
     rho::Vector{T}
 
 
-    function OperatorHE(mesh::Mesh1D2V{T}) where T
+    function OperatorHE(mesh::Mesh1D2V{T}) where {T}
 
         kx = collect(2π / (mesh.xmax - mesh.xmin) .* fftfreq(mesh.nx, mesh.nx))
         Jx = zeros(T, mesh.nx)
         Jy = zeros(T, mesh.nx)
         rho = zeros(T, mesh.nx)
-        new{T}( mesh, kx, Jx, Jy, rho)
+        return new{T}(mesh, kx, Jx, Jy, rho)
 
     end
 
 end
-
 
 
 """

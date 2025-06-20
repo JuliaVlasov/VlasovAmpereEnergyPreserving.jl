@@ -8,7 +8,7 @@ struct OperatorHB{T}
     kvy::Vector{T}
     ft::Array{Complex{T}, 3}
 
-    function OperatorHB(mesh::Mesh1D2V{T}) where T
+    function OperatorHB(mesh::Mesh1D2V{T}) where {T}
 
         kx = collect(2π / (mesh.xmax - mesh.xmin) * fftfreq(mesh.nx, mesh.nx))
         kvx = collect(2π / (mesh.vxmax - mesh.vxmin) * fftfreq(mesh.nvx, mesh.nvx))
@@ -16,7 +16,7 @@ struct OperatorHB{T}
 
         ft = zeros(Complex{T}, (mesh.nvx, mesh.nvy, mesh.nx))
 
-        new{T}(mesh, kx, kvx, kvy, ft)
+        return new{T}(mesh, kx, kvx, kvy, ft)
 
     end
 
@@ -42,7 +42,7 @@ function solve!(f, Ey, B, hb::OperatorHB, dt)
     hb.ft .= fft(f, 1)
     @threads for l in 1:nx
         for j in 1:nvy, i in 1:nvx
-           hb.ft[i, j, l] *= exp(-1im * hb.kvx[i] * hb.mesh.vy[j] * tan(B[l] * hdt))
+            hb.ft[i, j, l] *= exp(-1im * hb.kvx[i] * hb.mesh.vy[j] * tan(B[l] * hdt))
         end
     end
     hb.ft .= ifft(hb.ft, 1)

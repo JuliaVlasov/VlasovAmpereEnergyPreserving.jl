@@ -4,13 +4,13 @@ struct OperatorLapentaHF{T}
     kx::Vector{T}
     ft::Array{Complex{T}, 2}
 
-    function OperatorLapentaHF(mesh::Mesh1D2V{T}) where T
+    function OperatorLapentaHF(mesh::Mesh1D2V{T}) where {T}
 
         kx = collect(2π / (mesh.xmax - mesh.xmin) .* fftfreq(mesh.nx, mesh.nx))
 
         ft = zeros(Complex{T}, (mesh.nvx, mesh.nx))
 
-        new{T}( mesh, kx, ft)
+        return new{T}(mesh, kx, ft)
 
     end
 
@@ -27,7 +27,7 @@ dEy/dt = 0
 dB/dt  = 0
 ```
 """
-function solve!( f::AbstractArray{T, 3}, hf::OperatorLapentaHF, dt::Real) where {T}
+function solve!(f::AbstractArray{T, 3}, hf::OperatorLapentaHF, dt::Real) where {T}
 
     nvx, nvy, nx = size(f)
 
@@ -41,5 +41,5 @@ function solve!( f::AbstractArray{T, 3}, hf::OperatorLapentaHF, dt::Real) where 
         f[:, j, :] .= real(hf.ft)
     end
 
+    return
 end
-

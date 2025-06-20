@@ -6,7 +6,7 @@ struct OperatorHB2{T}
     kvy::Vector{T}
     ft::Array{Complex{T}, 3}
 
-    function OperatorHB2(mesh::Mesh1D2V{T}) where T
+    function OperatorHB2(mesh::Mesh1D2V{T}) where {T}
 
         kx = collect(2π / (mesh.xmax - mesh.xmin) * fftfreq(mesh.nx, mesh.nx))
         kvx = collect(2π / (mesh.vxmax - mesh.vxmin) * fftfreq(mesh.nvx, mesh.nvx))
@@ -14,7 +14,7 @@ struct OperatorHB2{T}
 
         ft = zeros(Complex{T}, (mesh.nvx, mesh.nvy, mesh.nx))
 
-        new{T}(mesh, kx, kvx, kvy, ft)
+        return new{T}(mesh, kx, kvx, kvy, ft)
 
     end
 

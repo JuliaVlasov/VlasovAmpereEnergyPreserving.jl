@@ -8,7 +8,7 @@ struct OperatorLapentaHB{T}
     kvy::Vector{T}
     ft::Array{Complex{T}, 3}
 
-    function OperatorLapentaHB(mesh::Mesh1D2V{T}) where T
+    function OperatorLapentaHB(mesh::Mesh1D2V{T}) where {T}
 
         kx = collect(2π / (mesh.xmax - mesh.xmin) * fftfreq(mesh.nx, mesh.nx))
         kvx = collect(2π / (mesh.vxmax - mesh.vxmin) * fftfreq(mesh.nvx, mesh.nvx))
@@ -16,7 +16,7 @@ struct OperatorLapentaHB{T}
 
         ft = zeros(Complex{T}, (mesh.nvx, mesh.nvy, mesh.nx))
 
-        new{T}(mesh, kx, kvx, kvy, ft)
+        return new{T}(mesh, kx, kvx, kvy, ft)
 
     end
 
@@ -83,6 +83,5 @@ function solve!(f, Ex, Ey, B, hb::OperatorLapentaHB, dt)
     B .= Bnp1
     f .= real(hb.ft)
 
-    return 
+    return
 end
-

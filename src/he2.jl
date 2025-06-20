@@ -2,7 +2,7 @@ struct OperatorHE2{T}
 
     mesh::Mesh1D2V{T}
 
-    OperatorHE2(mesh::Mesh1D2V{T}) where T = new{T}(mesh)
+    OperatorHE2(mesh::Mesh1D2V{T}) where {T} = new{T}(mesh)
 
 end
 """
