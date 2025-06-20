@@ -16,21 +16,30 @@ struct OperatorHF{T}
         kx = collect(2π / (mesh.xmax - mesh.xmin) .* fftfreq(mesh.nx, mesh.nx))
         kmod = copy(kx)
         kmod[1] = 1
+        ft = zeros(Complex{T}, (mesh.nvx, mesh.nx))
+        rhoh = zeros(mesh.nx)
+        rhohvy = zeros(mesh.nx)
+        rhon = zeros(mesh.nx)
+        rhonvy = zeros(mesh.nx)
+        rhs = zeros(Complex{T}, mesh.nx)
+        Ef = zeros(Complex{T}, mesh.nx)
 
-        return new{T}(mesh, kx, kmod)
+        return new{T}(mesh, kx, kmod, ft, rhoh, rhohvy, rhon, rhonvy, rhs, Ef)
 
     end
 
 end
 
-# """
-# solve the subsystem
-#
-# df/dt + vx df/dx = 0
-# dEx/dt = -Jx
-# dEy/dt = -Jy
-# dB/dt=drx/dt=dry/dt=0
-# """
+"""
+solve the subsystem
+
+```math
+df/dt + vx df/dx = 0
+dEx/dt = -Jx
+dEy/dt = -Jy
+dB/dt = drx/dt = dry/dt = 0
+```
+"""
 function solve!(f, Ex, Ey, hf::OperatorHF, dt)
 
     nvx, nvy, nx = size(f)
@@ -38,8 +47,6 @@ function solve!(f, Ex, Ey, hf::OperatorHF, dt)
     dvx = hf.mesh.dvx
     dvy = hf.mesh.dvy
 
-
-    # Initialize arrays
     fnsvy = similar(f)
     fnp1vy = similar(f)
 
