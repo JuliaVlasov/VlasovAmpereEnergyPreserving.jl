@@ -4,7 +4,7 @@ using Printf
 import VlasovAmpereEnergyPreserving: updateg, poisson!, semilag_d2, compute_diag
 using DataFrames
 using Plots
-import VlasovAmpereEnergyPreserving: hf_lapenta2d!, HE_lapenta2d!, HB_lapenta2d!
+import VlasovAmpereEnergyPreserving: OperatorLapentaHF, OperatorLapentaHE, OperatorLapentaHB, solve!
 using VlasovAmpereEnergyPreserving
 
 # Hongtao-Lapenta splitting
@@ -66,11 +66,15 @@ function lapenta_2d(tmax)
 
     diags = [compute_diag(f, Ex, Ey, B, rx, ry, mesh, time)]
 
+    hf = OperatorLapentaHF(mesh)
+    he = OperatorLapentaHE(mesh)
+    hb = OperatorLapentaHB(mesh)
+
     while abs(time - tmax) > 1.0e-10
 
-        @timeit to "HFLapenta2D" hf_lapenta2d!(f, kx, mesh, dt)
-        @timeit to "HELapenta2D" HE_lapenta2d!(f, Ex, Ey, mesh, dt)
-        @timeit to "HBLapenta2D" HB_lapenta2d!(f, Ex, Ey, B, kx, kvx, kvy, mesh, dt)
+        @timeit to "HFLapenta2D" solve!(f, hf, dt)
+        @timeit to "HELapenta2D" solve!(f, Ex, Ey, he, dt)
+        @timeit to "HBLapenta2D" solve!(f, Ex, Ey, B, hb, dt)
 
         iter += 1
         time += dt
