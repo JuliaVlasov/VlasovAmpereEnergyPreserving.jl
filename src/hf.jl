@@ -10,6 +10,8 @@ struct OperatorHF{T}
     rhonvy::Vector{T}
     rhs::Vector{Complex{T}}
     Ef::Vector{Complex{T}}
+    fnsvy::Array{T, 3}
+    fnp1vy::Array{T, 3}
 
     function OperatorHF(mesh::Mesh1D2V{T}) where {T}
 
@@ -24,7 +26,10 @@ struct OperatorHF{T}
         rhs = zeros(Complex{T}, mesh.nx)
         Ef = zeros(Complex{T}, mesh.nx)
 
-        return new{T}(mesh, kx, kmod, ft, rhoh, rhohvy, rhon, rhonvy, rhs, Ef)
+        fnsvy = zeros(T, (mesh.nvx, mesh.nvy, mesh.nx))
+        fnp1vy = zeros(T, (mesh.nvx, mesh.nvy, mesh.nx))
+
+        return new{T}(mesh, kx, kmod, ft, rhoh, rhohvy, rhon, rhonvy, rhs, Ef, fnsvy, fnp1vy)
 
     end
 
@@ -47,37 +52,35 @@ function solve!(f, Ex, Ey, hf::OperatorHF, dt)
     dvx = hf.mesh.dvx
     dvy = hf.mesh.dvy
 
-    fnsvy = similar(f)
-    fnp1vy = similar(f)
-
-    rhoh = vec(sum(f; dims = [1, 2])) .* dvx .* dvy
+    hf.rhoh .= vec(sum(f; dims = [1, 2])) .* dvx .* dvy
 
     for j in axes(f, 2)
         hf.ft .= f[:, j, :]
-        fnsvy[:, j, :] .= hf.mesh.vy[j] .* hf.ft ./ hf.mesh.vx
+        hf.fnsvy[:, j, :] .= hf.mesh.vy[j] .* real(hf.ft) ./ hf.mesh.vx
         hf.ft .= fft(hf.ft, 2)
         hf.ft .*= exp.(-1im .* hf.mesh.vx .* hf.kx' * dt)
         hf.ft .= ifft(hf.ft, 2)
         f[:, j, :] .= real(hf.ft)
-        fnp1vy[:, j, :] .= hf.mesh.vy[j] * real(hf.ft) ./ hf.mesh.vx
+        hf.fnp1vy[:, j, :] .= hf.mesh.vy[j] .* real(hf.ft) ./ hf.mesh.vx
     end
 
-    rhon = vec(sum(f; dims = [1, 2])) .* dvx .* dvy
-    rhohvy = vec(sum(fnsvy; dims = [1, 2])) .* dvx .* dvy
-    rhonvy = vec(sum(fnp1vy; dims = [1, 2])) .* dvx .* dvy
+    hf.rhon .= vec(sum(f; dims = [1, 2])) .* dvx .* dvy
+    hf.rhohvy .= vec(sum(hf.fnsvy; dims = [1, 2])) .* dvx .* dvy
+    hf.rhonvy .= vec(sum(hf.fnp1vy; dims = [1, 2])) .* dvx .* dvy
 
 
-    rhs = (1 ./ (1im * hf.kmod)) .* fft(rhon .- rhoh)
-    Ef = fft(Ex)
-    Ef .+= rhs
-    Ef[1] = 0
-    Ex .= real(ifft(Ef))
+    hf.rhs .= (1 ./ (1im * hf.kmod)) .* fft(hf.rhon .- hf.rhoh)
+    hf.Ef .= fft(Ex)
+    hf.Ef .+= hf.rhs
+    hf.Ef[1] = 0
+    Ex .= real(ifft(hf.Ef))
 
-    rhs = (1 ./ (1im * hf.kmod)) .* fft(rhonvy .- rhohvy)
-    Ef = fft(Ey)
-    Ef .+= rhs
-    Ef[1] = 0
-    return Ey .= real(ifft(Ef))
+    hf.rhs .= (1 ./ (1im * hf.kmod)) .* fft(hf.rhonvy .- hf.rhohvy)
+    hf.Ef .= fft(Ey)
+    hf.Ef .+= hf.rhs
+    hf.Ef[1] = 0
+    Ey .= real(ifft(hf.Ef))
+
 end
 
 function hf!(
