@@ -1,11 +1,11 @@
 function make_semilag(d::Int)
     @inline function specialized_semilag(
-        f::Vector{Float64}, E::Float64, dt::Float64, dv::Float64
-    )::Vector{Float64}
+            f::Vector{Float64}, E::Float64, dt::Float64, dv::Float64
+        )::Vector{Float64}
         # Initialize output and working arrays
         f_new = similar(f)
-        alpha = zeros(2d+2)
-        j_ind = Vector{Int}(undef, 2d+2)
+        alpha = zeros(2d + 2)
+        j_ind = Vector{Int}(undef, 2d + 2)
 
         # Precompute the shift amount
         shift = E * dt / dv
@@ -26,8 +26,8 @@ function make_semilag(d::Int)
             end
 
             # Compute Lagrange coefficients
-            P = ones(2d+2, 2d+2)
-            C = ones(2d+2, 2d+2)
+            P = ones(2d + 2, 2d + 2)
+            C = ones(2d + 2, 2d + 2)
 
             @fastmath for ii in (-d):(d + 1), jj in (-d):(d + 1)
                 if ii ≠ jj
@@ -37,7 +37,7 @@ function make_semilag(d::Int)
             end
 
             # Compute Lagrange weights
-            L = zeros(2d+2)
+            L = zeros(2d + 2)
             @fastmath for ii in (-d):(d + 1)
                 prodP = 1.0
                 prodC = 1.0

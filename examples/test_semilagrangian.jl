@@ -13,7 +13,7 @@
 #     name: julia-1.11
 # ---
 
-# Semi-Lagrangian function 
+# Semi-Lagrangian function
 
 using FFTW
 using Plots
@@ -25,12 +25,12 @@ Nv = 63
 
 xmin = -14
 xmax = 14
-dx = (xmax - xmin)/Nx
-x = collect(LinRange(xmin, xmax, Nx+1)[1:(end - 1)])
+dx = (xmax - xmin) / Nx
+x = collect(LinRange(xmin, xmax, Nx + 1)[1:(end - 1)])
 vmin = -14
 vmax = 14
-dv = (vmax - vmin)/Nv
-v = collect(LinRange(vmin, vmax, Nv+1)[1:(end - 1)])
+dv = (vmax - vmin) / Nv
+v = collect(LinRange(vmin, vmax, Nv + 1)[1:(end - 1)])
 
 # -
 
@@ -41,7 +41,7 @@ f = exp.(-0.5 * (v .- 5) .^ 2) .* exp.(-0.5 * x .^ 2)'
     dt = 0.5
     for i in eachindex(v)
         ft = f[:, i]
-        f[:, i] .= semilag(ft, Nv, v[i], tan(dt/2), dv, d)
+        f[:, i] .= semilag(ft, Nv, v[i], tan(dt / 2), dv, d)
     end
     for i in eachindex(x)
         ft = f[i, :]
@@ -49,9 +49,9 @@ f = exp.(-0.5 * (v .- 5) .^ 2) .* exp.(-0.5 * x .^ 2)'
     end
     for i in eachindex(v)
         ft = f[:, i]
-        f[:, i] .= semilag(ft, Nv, v[i], tan(dt/2), dv, d)
+        f[:, i] .= semilag(ft, Nv, v[i], tan(dt / 2), dv, d)
     end
-    plot(x, v, f, aspect_ratio=1)
+    plot(x, v, f, aspect_ratio = 1)
     xlims!(-15, 15)
     ylims!(-15, 15)
 end

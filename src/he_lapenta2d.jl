@@ -1,3 +1,32 @@
+struct OperatorLapentaHE{T}
+
+    mesh::Mesh1D2V
+    Jx::Vector{T}
+    Jy::Vector{T}
+    rho::Vector{T}
+    Ex::Vector{T}
+    Ey::Vector{T}
+    fvx::Vector{T}
+    fvy::Vector{T}
+
+    function OperatorLapentaHE(mesh::Mesh1D2V{T}) where {T}
+
+        Jx = zeros(T, mesh.nx)
+        Jy = zeros(T, mesh.nx)
+        rho = zeros(T, mesh.nx)
+        Ex = zeros(T, mesh.nx)
+        Ey = zeros(T, mesh.nx)
+        fvx = zeros(T, mesh.nvx)
+        fvy = zeros(T, mesh.nvy)
+
+        return new{T}(mesh, Jx, Jy, rho, Ex, Ey, fvx, fvy)
+
+
+    end
+
+
+end
+
 """
 solve the subsystem 
 
@@ -9,92 +38,44 @@ math```
 ```
 
 """
-function HE_lapenta2d!(f, Ex, Ey, vx, vy, dt)
+function solve!(f, Ex, Ey, he::OperatorLapentaHE, dt)
+
     nvx, nvy, nx = size(f)
 
-    dvx = vx[2] - vx[1]
-    dvy = vy[2] - vy[1]
-
-    Jx = zeros(nx)
-    Jy = zeros(nx)
-    rho = zeros(nx)
+    dvx = he.mesh.dvx
+    dvy = he.mesh.dvy
 
     for ix in axes(f, 3), ivy in axes(f, 2), ivx in axes(f, 1)
-        Jx[ix] += vx[ivx] * f[ivx, ivy, ix]
-        Jy[ix] += vy[ivy] * f[ivx, ivy, ix]
-        rho[ix] += f[ivx, ivy, ix]
+        he.Jx[ix] += he.mesh.vx[ivx] * f[ivx, ivy, ix]
+        he.Jy[ix] += he.mesh.vy[ivy] * f[ivx, ivy, ix]
+        he.rho[ix] += f[ivx, ivy, ix]
     end
 
-    Jx .*= dvx * dvy
-    Jy .*= dvx * dvy
-    rho .*= dvx * dvy
+    he.Jx .*= dvx * dvy
+    he.Jy .*= dvx * dvy
+    he.rho .*= dvx * dvy
 
-    dt2_rho4 = (dt^2) .* rho ./ 4
+    dt2_rho4 = (dt^2) .* he.rho ./ 4
     dt2_rho2 = dt2_rho4 .* 2
 
-    Exnew = (1 ./ (1 .+ dt2_rho4)) .* Ex .- (dt ./ (2 .+ dt2_rho2)) .* Jx
-    Eynew = (1 ./ (1 .+ dt2_rho4)) .* Ey .- (dt ./ (2 .+ dt2_rho2)) .* Jy
+    he.Ex .= (1 ./ (1 .+ dt2_rho4)) .* Ex .- (dt ./ (2 .+ dt2_rho2)) .* he.Jx
+    he.Ey .= (1 ./ (1 .+ dt2_rho4)) .* Ey .- (dt ./ (2 .+ dt2_rho2)) .* he.Jy
 
-    fvx = zeros(nvx)
-    for j in axes(f, 2), i in eachindex(Exnew)
-        fvx .= f[:, j, i]
-        fvx .= semilag_d2(fvx, Exnew[i], dt, dvx)
-        f[:, j, i] .= fvx
+    for i in eachindex(he.Ex), j in axes(f, 2)
+        he.fvx .= f[:, j, i]
+        he.fvx .= semilag_d2(he.fvx, he.Ex[i], dt, dvx)
+        f[:, j, i] .= he.fvx
     end
 
-    fvy = zeros(nvy)
-    for k in axes(f, 1), i in eachindex(Eynew)
-        fvy .= f[k, :, i]
-        fvy .= semilag_d2(fvy, Eynew[i], dt, dvy)
-        f[k, :, i] .= fvy
+    for i in eachindex(he.Ey), k in axes(f, 1)
+        he.fvy .= f[k, :, i]
+        he.fvy .= semilag_d2(he.fvy, he.Ey[i], dt, dvy)
+        f[k, :, i] .= he.fvy
     end
 
-    Ex .= 2 .* Exnew .- Ex
-    Ey .= 2 .* Eynew .- Ey
-end
-#=
-function [ fn,Ex,Ey ] = HE_lapenta2d(fn,vx,vy,Ex,Ey,Nvx,Nvy,dvx,dvy,Nx,dx,dt,d)
+    Ex .= 2 .* he.Ex .- Ex
+    Ey .= 2 .* he.Ey .- Ey
 
-%solve the subsystem 
-%df/dt + Ex df/dvx + Ey df/dvy = 0
-%dEx/dt=-Jx
-%dEy/dt=-Jy
-%dB/dt=0
-
-for i=1:Nx
-    Jx(i)=0.;Jy(i)=0.;rho(i)=0;
-    for j=1:Nvx-1
-        for k=1:Nvy-1
-            Jx(i)=Jx(i)+vx(j)*fn(j,k,i);
-            Jy(i)=Jy(i)+vy(k)*fn(j,k,i);
-            rho(i)=rho(i)+fn(j,k,i);
-        end
-    end
-end
-Jx=Jx*dvx*dvy;Jy=Jy*dvx*dvy;rho=rho*dvx*dvy;
-
-Exnew=(1./(1+dt*dt*0.25*rho)).*Ex-0.5*(dt./(1+dt*dt*0.25*rho)).*Jx;
-Eynew=(1./(1+dt*dt*0.25*rho)).*Ey-0.5*(dt./(1+dt*dt*0.25*rho)).*Jy;
-
-for j=1:Nvy
-    for i=1:Nx
-        ft=fn(:,j,i)';
-        u1=semilag(ft,Nvx,Exnew(i),dt,dvx,d);
-        fn(:,j,i)=u1;
-    end
-end
-
-for j=1:Nvx
-    for i=1:Nx
-        ft=fn(j,:,i);
-        u1=semilag(ft,Nvy,Eynew(i),dt,dvy,d);
-        fn(j,:,i)=u1;
-    end
-end
-
-Ex=2*Exnew-Ex;
-Ey=2*Eynew-Ey;
+    return
 
 end
-
-=#

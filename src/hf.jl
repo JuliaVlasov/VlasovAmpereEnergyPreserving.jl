@@ -1,59 +1,115 @@
-# """
-# solve the subsystem
-# 
-# df/dt + vx df/dx = 0
-# dEx/dt = -Jx
-# dEy/dt = -Jy
-# dB/dt=drx/dt=dry/dt=0
-# """
-function hf!(f, Ex, Ey, dt, vx, vy, kx)
+struct OperatorHF{T}
+
+    mesh::AbstractMesh
+    kx::Vector{T}
+    kmod::Vector{T}
+    ft::Matrix{Complex{T}}
+    rhoh::Vector{T}
+    rhohvy::Vector{T}
+    rhon::Vector{T}
+    rhonvy::Vector{T}
+    rhs::Vector{Complex{T}}
+    Ef::Vector{Complex{T}}
+    fnsvy::Array{T, 3}
+    fnp1vy::Array{T, 3}
+
+    function OperatorHF(mesh::Mesh1D2V{T}) where {T}
+
+        kx = collect(2π / (mesh.xmax - mesh.xmin) .* fftfreq(mesh.nx, mesh.nx))
+        kmod = copy(kx)
+        kmod[1] = 1
+        ft = zeros(Complex{T}, (mesh.nvx, mesh.nx))
+        rhoh = zeros(mesh.nx)
+        rhohvy = zeros(mesh.nx)
+        rhon = zeros(mesh.nx)
+        rhonvy = zeros(mesh.nx)
+        rhs = zeros(Complex{T}, mesh.nx)
+        Ef = zeros(Complex{T}, mesh.nx)
+
+        fnsvy = zeros(T, (mesh.nvx, mesh.nvy, mesh.nx))
+        fnp1vy = zeros(T, (mesh.nvx, mesh.nvy, mesh.nx))
+
+        return new{T}(mesh, kx, kmod, ft, rhoh, rhohvy, rhon, rhonvy, rhs, Ef, fnsvy, fnp1vy)
+
+    end
+
+end
+
+"""
+solve the subsystem
+
+```math
+df/dt + vx df/dx = 0
+dEx/dt = -Jx
+dEy/dt = -Jy
+dB/dt = drx/dt = dry/dt = 0
+```
+"""
+function solve!(f, Ex, Ey, hf::OperatorHF, dt)
 
     nvx, nvy, nx = size(f)
 
-    dvx = vx[2]-vx[1]
-    dvy = vy[2]-vy[1]
+    dvx = hf.mesh.dvx
+    dvy = hf.mesh.dvy
 
-    rhoh = vec(sum(f; dims=[1, 2])) .* dvx .* dvy
-
-    # Initialize arrays
-    fnsvy = similar(f)
-    fnp1vy = similar(f)
-
-    fs = complex(zeros(nvx, nx))
+    hf.rhoh .= vec(sum(f; dims = [1, 2])) .* dvx .* dvy
 
     for j in axes(f, 2)
-        fs .= f[:, j, :]
-        fnsvy[:, j, :] .= vy[j] .* fs ./ vx
-        fs .= fft(fs, 2)
-        fs .*= exp.(-1im .* vx .* kx' * dt)
-        fs .= ifft(fs, 2)
-        f[:, j, :] .= real(fs)
-        fnp1vy[:, j, :] .= vy[j] * real(fs) ./ vx
+        hf.ft .= f[:, j, :]
+        hf.fnsvy[:, j, :] .= hf.mesh.vy[j] .* real(hf.ft) ./ hf.mesh.vx
+        hf.ft .= fft(hf.ft, 2)
+        hf.ft .*= exp.(-1im .* hf.mesh.vx .* hf.kx' * dt)
+        hf.ft .= ifft(hf.ft, 2)
+        f[:, j, :] .= real(hf.ft)
+        hf.fnp1vy[:, j, :] .= hf.mesh.vy[j] .* real(hf.ft) ./ hf.mesh.vx
     end
 
-    # Calculate updated charge densities
-    rhohvy = vec(sum(fnsvy; dims=[1, 2])) .* dvx .* dvy
-    rhon = vec(sum(f; dims=[1, 2])) .* dvx .* dvy
-    rhonvy = vec(sum(fnp1vy; dims=[1, 2])) .* dvx .* dvy
+    hf.rhon .= vec(sum(f; dims = [1, 2])) .* dvx .* dvy
+    hf.rhohvy .= vec(sum(hf.fnsvy; dims = [1, 2])) .* dvx .* dvy
+    hf.rhonvy .= vec(sum(hf.fnp1vy; dims = [1, 2])) .* dvx .* dvy
 
-    # Compute current and update electric fields
-    k_mod = copy(kx)
-    k_mod[1] = 1  # Avoid division by zero for DC component
 
-    # Update Ex field
-    rhs = (1 ./ (1im * k_mod)) .* fft(rhon .- rhoh)
-    Ef = fft(Ex)
-    Ef .+= rhs
-    Ef[1] = 0  # Set DC component to zero
-    Ex .= real(ifft(Ef))
+    hf.rhs .= (1 ./ (1im * hf.kmod)) .* fft(hf.rhon .- hf.rhoh)
+    hf.Ef .= fft(Ex)
+    hf.Ef .+= hf.rhs
+    hf.Ef[1] = 0
+    Ex .= real(ifft(hf.Ef))
 
-    # Update Ey field
-    rhs = (1 ./ (1im * k_mod)) .* fft(rhonvy .- rhohvy)
-    Ef = fft(Ey)
-    Ef .+= rhs
-    Ef[1] = 0  # Set DC component to zero
-    Ey .= real(ifft(Ef))
+    hf.rhs .= (1 ./ (1im * hf.kmod)) .* fft(hf.rhonvy .- hf.rhohvy)
+    hf.Ef .= fft(Ey)
+    hf.Ef .+= hf.rhs
+    hf.Ef[1] = 0
+    Ey .= real(ifft(hf.Ef))
+
 end
+
+function hf!(
+        f::Matrix{Float64},
+        E::Vector{Float64},
+        dt::Float64,
+        dv::Float64,
+        v::Vector{Float64},
+        kx::Vector{Float64},
+    )
+    rhoh = vec(sum(f; dims = 1)) .* dv
+    ft = fft(f, 2)
+    ft .*= exp.(-1im * v .* kx' * dt)
+    f .= real(ifft(ft, 2))
+    rhon = vec(sum(f; dims = 1)) .* dv
+    Ef = fft(E)
+    rhs = fft(rhon .- rhoh)
+
+    nx = length(kx)
+
+    for i in 2:nx
+        Ef[i] = Ef[i] + rhs[i] / (1im * kx[i])
+    end
+
+    Ef[1] = 0
+
+    return E .= real(ifft(Ef))
+end
+
 
 #=
 function [ f, Ex, Ey ] = hf(dt,dvx,dvy,Nvx,Nvy,Nx,Vx,vy,kx,k,f,Ex,Ey)
@@ -97,62 +153,3 @@ Ey=real(ifft(Ef));
 
 end
 =#
-
-export hf
-
-"""
-solve the subsystem
-
-df/dt + vx df/dvx = 0
-dEx/dt = -Jx
-dEy/dt = -Jy
-dB/dt=drx/dt=dry/dt=0
-
-"""
-function hf(dt, dvx, dvy, Nvx, Nvy, Nx, Vx, vy, kx, k, f, Ex, Ey)
-    # Calculate initial charge densities
-    rhoh = dropdims(sum(sum(f; dims=1); dims=2)) * dvx * dvy
-
-    # Initialize arrays
-    fnsvy = similar(f)
-    fnp1vy = similar(f)
-
-    # Loop over vy dimension
-    for j in 1:Nvy
-        fs = dropdims(f[:, j, :]; dims=2)  # Extract 2D slice
-        fnsvy[:, j, :] = vy[j] * fs ./ Vx
-
-        # Fourier transform and apply phase shift
-        fs_hat = fft(fs', 1)  # FFT along x dimension
-        fs_shifted = exp.(-im * Vx' .* kx * dt) .* fs_hat
-        fs = real(ifft(fs_shifted, 1))'  # Inverse FFT
-
-        f[:, j, :] = fs  # Update distribution function
-        fnp1vy[:, j, :] = vy[j] * fs ./ Vx
-    end
-
-    # Calculate updated charge densities
-    rhohvy = dropdims(sum(sum(fnsvy; dims=1); dims=2) * dvx * dvy)
-    rhon = dropdims(sum(sum(f; dims=1); dims=2) * dvx * dvy)
-    rhonvy = dropdims(sum(sum(fnp1vy; dims=1); dims=2) * dvx * dvy)
-
-    # Compute current and update electric fields
-    k_mod = copy(k)
-    k_mod[1] = 1  # Avoid division by zero for DC component
-
-    # Update Ex field
-    rhs = (1 ./ (im * k_mod)) .* fft(rhon - rhoh)
-    Ef = fft(Ex)
-    Ef += rhs
-    Ef[1] = 0  # Set DC component to zero
-    Ex = real(ifft(Ef))
-
-    # Update Ey field
-    rhs = (1 ./ (im * k_mod)) .* fft(rhonvy - rhohvy)
-    Ef = fft(Ey)
-    Ef += rhs
-    Ef[1] = 0  # Set DC component to zero
-    Ey = real(ifft(Ef))
-
-    return f, Ex, Ey
-end

@@ -19,8 +19,8 @@ using CUDA
 using KernelAbstractions
 
 function compute_ekin_gpu(
-    f::CuArray{Float64,3}, vx::CuArray{Float64}, vy::CuArray{Float64}, dx::Float64
-)::CuArray{Float64}
+        f::CuArray{Float64, 3}, vx::CuArray{Float64}, vy::CuArray{Float64}, dx::Float64
+    )::CuArray{Float64}
     Nx = size(f, 3)
     Nvx = length(vx)
     Nvy = length(vy)
@@ -45,19 +45,19 @@ function compute_ekin_gpu(
     threads = (16, 16, 1)
     blocks = (cld(Nx, threads[1]), cld(Nvx, threads[2]), cld(Nvy, threads[3]))
 
-    @cuda threads=threads blocks=blocks kernel!(kin, f, vx, vy, dvx, dvy)
+    @cuda threads = threads blocks = blocks kernel!(kin, f, vx, vy, dvx, dvy)
     synchronize()
 
     return kin .* dx  # Multiply by dx after reduction
 end
 
 function compute_ekin(
-    f::AbstractArray{Float64,3},
-    vx::AbstractVector{Float64},
-    vy::AbstractVector{Float64},
-    dx::Float64;
-    device::Symbol=:cpu,
-)
+        f::AbstractArray{Float64, 3},
+        vx::AbstractVector{Float64},
+        vy::AbstractVector{Float64},
+        dx::Float64;
+        device::Symbol = :cpu,
+    )
     if device == :gpu && CUDA.functional()
         f_gpu = CuArray(f)
         vx_gpu = CuArray(vx)
@@ -71,8 +71,8 @@ end
 using Base.Threads
 
 function compute_ekin_cpu(
-    f::Array{Float64,3}, vx::Vector{Float64}, vy::Vector{Float64}, dx::Float64
-)::Vector{Float64}
+        f::Array{Float64, 3}, vx::Vector{Float64}, vy::Vector{Float64}, dx::Float64
+    )::Vector{Float64}
     Nx = size(f, 3)
     Nvx = length(vx)
     Nvy = length(vy)
