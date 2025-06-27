@@ -7,7 +7,7 @@ using FFTW
 using LinearAlgebra
 using Plots
 using ProgressMeter
-import VlasovAmpereEnergyPreserving: poisson, semilag_d2, hf!, HE!
+import VlasovAmpereEnergyPreserving: poisson!, semilag_d2, hf!, HE!
 using DispersionRelations
 
 # +

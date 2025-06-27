@@ -1,10 +1,11 @@
 using FFTW
 using LinearAlgebra
 using Printf
-import VlasovAmpereEnergyPreserving: updateg, poisson!, semilag_d2, compute_diag
 using DataFrames
 using Plots
+
 import VlasovAmpereEnergyPreserving: OperatorLapentaHF, OperatorLapentaHE, OperatorLapentaHB, solve!
+import VlasovAmpereEnergyPreserving: updateg, poisson!, semilag_d2, compute_diag
 using VlasovAmpereEnergyPreserving
 
 # Hongtao-Lapenta splitting
@@ -34,7 +35,6 @@ function lapenta_2d(tmax)
     dvx = mesh.dvx
     dvy = mesh.dvy
 
-    kx = collect(2π / (xmax - xmin) * fftfreq(nx, nx))
 
     f = zeros(nvx, nvy, nx)
 
@@ -51,15 +51,14 @@ function lapenta_2d(tmax)
     Ey = zeros(nx)
     B = zeros(nx)
     rho = vec(sum(f; dims = (1, 2))) * dvx * dvy
+
+    kx = collect(2π / (xmax - xmin) * fftfreq(nx, nx))
     poisson!(Ex, rho, kx)
+
     B = α * cos.(kinit .* x)
 
     rx = sqrt(0.5 * sum(Ex .^ 2) * dx + 1.0)
     ry = sqrt(0.5 * sum(Ey .^ 2) * dx + 1.0)
-
-    # Useful arrays
-    kvx = collect(2π / (vxmax - vxmin) * fftfreq(nvx, nvx))
-    kvy = collect(2π / (vymax - vymin) * fftfreq(nvy, nvy))
 
     time = 0.0
     iter = 0
@@ -85,4 +84,5 @@ function lapenta_2d(tmax)
     show(to)
 
     return vcat(DataFrame.(diags)...)
+
 end

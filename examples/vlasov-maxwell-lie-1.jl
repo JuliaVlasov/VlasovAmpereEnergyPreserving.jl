@@ -44,12 +44,12 @@ function vm_lie_1(tmax)
     Ey = zeros(nx)
     B = zeros(nx)
 
-    kx = collect(2π / (xmax - xmin) * fftfreq(nx, nx))
-    kvx = collect(2π / (vxmax - vxmin) * fftfreq(nvx, nvx))
-    kvy = collect(2π / (vymax - vymin) * fftfreq(nvy, nvy))
 
     rho = vec(sum(f; dims = (1, 2))) * dvx * dvy
+
+    kx = collect(2π / (xmax - xmin) * fftfreq(nx, nx))
     poisson!(Ex, rho, kx)
+
     B = α * cos.(kinit .* x)
 
     rx = sqrt(0.5 * sum(Ex .* Ex) * dx + 1.0)

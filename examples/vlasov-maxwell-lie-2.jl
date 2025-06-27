@@ -28,7 +28,6 @@ function vm_lie_2(tmax)
     mesh = Mesh1D2V(xmin, xmax, nx, vxmin, vxmax, nvx, vymin, vymax, nvy)
 
     x = mesh.x
-    kx = 2π / (xmax - xmin) * collect(fftfreq(nx, nx))
     vx = mesh.vx
     vy = mesh.vy
 
@@ -47,7 +46,10 @@ function vm_lie_2(tmax)
     dvx = mesh.dvx
     dvy = mesh.dvy
     rho = vec(sum(f; dims = (1, 2))) * dvx * dvy
+
+    kx = 2π / (xmax - xmin) * collect(fftfreq(nx, nx))
     poisson!(Ex, rho, kx)
+
     B = α * cos.(kinit .* x)
 
     kvx = collect(2π / (vxmax - vxmin) * fftfreq(nvx, nvx))
