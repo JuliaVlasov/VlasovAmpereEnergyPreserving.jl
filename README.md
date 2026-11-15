@@ -12,6 +12,14 @@ of the method.
 
 [![Build Status](https://github.com/JuliaVlasov/VlasovAmpereEnergyPreserving.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/JuliaVlasov/VlasovAmpereEnergyPreserving.jl/actions/workflows/CI.yml?query=branch%3Amain)
 
+For installation instructions, numerical method, and the paper's test cases,
+see the [documentation](https://juliavlasov.github.io/VlasovAmpereEnergyPreserving.jl/dev).
+
+## Citation
+
+Crouseilles, N., Liu, H., and Yue, Y. “Semi-Lagrangian SAV method for
+Vlasov-Maxwell equations.” *Journal of Computational Physics* 549 (2026),
+114606. [doi:10.1016/j.jcp.2025.114606](https://doi.org/10.1016/j.jcp.2025.114606).
 
 ```
 git clone https://github.com/JuliaVlasov/VlasovAmpereEnergyPreserving.jl
