@@ -67,3 +67,4 @@ end
 const semilag_d1 = make_semilag(1)
 const semilag_d2 = make_semilag(2)
 const semilag_d3 = make_semilag(3)
+const semilag_d9 = make_semilag(9)

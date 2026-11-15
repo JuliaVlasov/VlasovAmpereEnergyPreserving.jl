@@ -1,0 +1,9 @@
+[deps]
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+VlasovAmpereEnergyPreserving = "91417b62-65c1-4edc-865d-0518188d9a3f"
+
+[sources]
+VlasovAmpereEnergyPreserving = {path = ".."}
+
+[compat]
+Documenter = "1"

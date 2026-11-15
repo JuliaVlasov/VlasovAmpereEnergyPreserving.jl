@@ -1,0 +1,13 @@
+[deps]
+CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
+FFTW = "7a1cc6ca-52ef-59f5-83cd-3a7055c09341"
+KernelAbstractions = "63c18a36-062a-441e-b654-da1e3ab1ce7c"
+VlasovAmpereEnergyPreserving = "91417b62-65c1-4edc-865d-0518188d9a3f"
+
+[sources]
+VlasovAmpereEnergyPreserving = {path = "/Users/pierrenavaro/Codes/copilot-worktrees/VlasovAmpereEnergyPreserving.jl/pnavaro-effective-guacamole"}
+
+[compat]
+CUDA = "5, 6"
+FFTW = "1"
+KernelAbstractions = "0.9"
