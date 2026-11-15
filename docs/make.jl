@@ -12,3 +12,8 @@ makedocs(;
         "JAX acceleration benchmark" => "jax-benchmark.md",
     ],
 )
+
+deploydocs(;
+    repo = "github.com/JuliaVlasov/VlasovAmpereEnergyPreserving.jl.git",
+    devbranch = "main",
+)

@@ -37,15 +37,3 @@ splitting is designed to preserve Gauss's law and a modified total energy.
 Finite grids, velocity truncation and interpolation can affect those invariants
 in a numerical run. The two-stream example uses a symmetric splitting, while
 the Vlasov–Maxwell examples use the first-order Lie splitting.
-
-## Build the documentation
-
-From the repository root, create the documentation environment and build:
-
-```sh
-julia --project=docs -e 'using Pkg; Pkg.develop(path=pwd()); Pkg.instantiate()'
-julia --project=docs docs/make.jl
-```
-
-Open `docs/build/index.html` in a browser. Building the documentation does not
-run the simulations.
