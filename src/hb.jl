@@ -21,17 +21,27 @@ struct OperatorHB{T}
     end
 
 end
-"""
-solve the subsystem 
+@doc raw"""
+    solve!(f, Ey, B, hb::OperatorHB, dt)
+
+Advance the magnetic splitting subsystem by `dt`:
 
 ```math
-df/dt+B Jv.df/dv=0 
-dEy/dt=-dB/dx
-dB/dt=drx/dt=dry/dt=0
+\begin{aligned}
+\partial_t f + B\left(v_y\partial_{v_x}f-v_x\partial_{v_y}f\right) &= 0,\\
+\partial_t E_y &= -\partial_x B,\\
+\partial_t B = \dot r_x = \dot r_y &= 0.
+\end{aligned}
 ```
 
-first system equation is solved with semi-Lagrangian + exact splitting 
+Here `f[i, j, l]` represents ``f(v_{x,i}, v_{y,j}, x_l)``.
+At each spatial node, the velocity rotation is decomposed into three Fourier
+shears with coefficients ``\tan(B\Delta t/2)``, ``-\sin(B\Delta t)``, and
+``\tan(B\Delta t/2)``. The electric-field update uses a periodic Fourier
+derivative. `B` is unchanged.
 
+The transported distribution is stored in `hb.ft`; this method does not copy
+it back to `f`. `Ey` is updated in place and returned.
 """
 function solve!(f, Ey, B, hb::OperatorHB, dt)
 
@@ -67,84 +77,6 @@ function solve!(f, Ey, B, hb::OperatorHB, dt)
     return Ey .= Ey .- dt .* real(ifft(1im .* hb.kx .* fft(B)))
 
 end
-
-#=
-function [ fn,Ey ] = HB(fn,Ey,B,vx,vy,kk,kkvx,kkvy,Nvx,Nvy,dvx,dvy,Nx,dt,d,meth)
-
-%solve the subsystem 
-%df/dt+B Jv.df/dv=0 (with semi-Lagrangian + exact splitting) 
-%dEy/dt=-dB/dx
-%dB/dt=drx/dt=dry/dt=0
-
-if (meth==0)
-    fn=fft(fn,[],1);
-    for l=1:Nx
-      for j=1:Nvy
-        for i=1:Nvx
-            fn(i,j,l)=exp(-1i*kkvx(i)*vy(j)*tan(B(l)*dt/2)).*fn(i,j,l);
-        end
-      end
-    end
-    fn=ifft(fn,[],1);    
-
-    fn=fft(fn,[],2);
-    for l=1:Nx
-     for i=1:Nvx
-         for j=1:Nvy
-             fn(i,j,l)=exp(1i*kkvy(j)*vx(i)*sin(B(l)*dt)).*fn(i,j,l);
-         end
-      end
-    end
-    fn=ifft(fn,[],2); 
-
-    fn=fft(fn,[],1);
-    for l=1:Nx
-      for j=1:Nvy
-        for i=1:Nvx
-            fn(i,j,l)=exp(-1i*kkvx(i)*vy(j)*tan(B(l)*dt/2)).*fn(i,j,l);
-        end
-      end
-    end
-    fn=ifft(fn,[],1);  
-
-end
-
-if (meth==1)
-
-    for j=1:Nvy
-        for i=1:Nx
-            ft=fn(:,j,i)';
-            dep=vy(j)*(tan(B(i)*dt/2))/(dt/2);
-            u1=semilag(ft,Nvx,dep,dt/2,dvx,d);
-            fn(:,j,i)=u1;
-        end
-    end
-
-    for j=1:Nvx
-        for i=1:Nx
-            ft=fn(j,:,i);
-            dep=-vx(j)*(sin(B(i)*dt))/dt;
-            u1=semilag(ft,Nvy,dep,dt,dvy,d);
-            fn(j,:,i)=u1;
-        end
-    end
-
-    for j=1:Nvy
-        for i=1:Nx
-            ft=fn(:,j,i)';
-            dep=vy(j)*(tan(B(i)*dt/2))/(dt/2);
-            u1=semilag(ft,Nvx,dep,dt/2,dvx,d);
-            fn(:,j,i)=u1;
-        end
-    end
-
-end
-
-   amperey=real(ifft(sqrt(-1)*kk.*fft(B)));
-   Ey=Ey-dt*amperey;
-end
-
-=#
 
 function HB(
         fn::Array{ComplexF64, 3},

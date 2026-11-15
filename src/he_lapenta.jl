@@ -1,25 +1,29 @@
-#=
-function [ fn1,Enp1 ] = HE_lapenta(fn,V,E,Nv,kv,dv,Nx,dx,dt,d)
-
-    J=sum(V.*fn)*dv; 
-    rho=sum(fn)*dv;
-
-    Enew=(1./(1+(dt*dt*rho/4))).*E-(dt./(2+(dt*dt*rho/2))).*J;
-    Jnp1=J+dt*Enew.*rho;
-    Jnpdemi=J+0.5*dt*Enew.*rho;
-    Enp1=E-dt*Jnpdemi;
-
-    for i=1:Nx
-        ft=fn(:,i)';
-        u1=semilag(ft,Nv,Enew(i),dt,dv,d);
-        fn1(:,i)=u1;
-    end
-
-end
-=#
-
 export HE_lapenta!
 
+@doc raw"""
+    HE_lapenta!(f, E, v, nv, kv, dv, nx, dx, dt)
+
+Advance the one-velocity electric acceleration and current subsystem:
+
+```math
+\partial_t f+E\partial_vf=0,\qquad
+\partial_t E=-J,\qquad
+\rho=\int f\,dv,\quad J=\int vf\,dv.
+```
+
+Use uniform-grid velocity moments and the midpoint field
+
+```math
+\overline E=\frac{E^n-\frac{\Delta t}{2}J^n}
+                  {1+\frac{\Delta t^2}{4}\rho^n},
+\qquad
+E^{n+1}=E^n-\Delta t\left(J^n+\frac{\Delta t}{2}\rho^n\overline E\right).
+```
+
+Translate each column of `f`, of size `(nv, nx)`, with second-degree
+semi-Lagrangian interpolation at acceleration ``\overline E``.
+Update `f` and `E` in place and return `E`.
+"""
 function HE_lapenta!(
         f::Matrix{T},
         E::Vector{T},

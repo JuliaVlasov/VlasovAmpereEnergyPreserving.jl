@@ -1,33 +1,26 @@
-#=
-function diag = compute_diag(f,B,Ey,Ex,gy,vx,vy,ry,rx,nx,nvx,nvy,dx,t)
-
-    dvx=vx(2)-vx(1);dvy=vy(2)-vy(1);dxv=dx*dvx*dvy;
-    kin=0;
-    for k=1:nx
-        for i=1:nvx-1
-            for j=1:nvy-1
-                normv=vx(i)*vx(i)+vy(j)*vy(j);
-                kin=kin+normv*f(i,j,k);
-            end
-        end
-    end
-    kin=0.5*kin*dxv;
-
-    diag(1)=t;
-    diag(2)=dx*sum(B.*B);
-    diag(3)=dx*sum(Ex.*Ex);
-    diag(4)=dx*sum(Ey.*Ey);
-    diag(5)=kin;
-    diag(6)=sum(sum(sum(f)))*dxv;
-    diag(7)=kin+rx^2+ry^2+0.5*dx*sum(B.*B);
-    diag(8)=rx^2;
-    diag(9)=ry^2;
-    diag(10)=kin+0.5*dx*sum(Ex.*Ex)+0.5*dx*sum(Ey.*Ey)+0.5*dx*sum(B.*B);
-end
-=#
-
 export compute_diag
 
+@doc raw"""
+    compute_diag(f, Ex, Ey, B, rx, ry, mesh::Mesh1D2V, t)
+
+Return a dictionary of mass, field norms, and energy diagnostics at time `t`.
+All integrals use uniform-grid sums over `mesh`:
+
+```math
+\begin{aligned}
+K &= \frac12\int (v_x^2+v_y^2)f\,dx\,dv_x\,dv_y,\\
+M &= \int f\,dx\,dv_x\,dv_y,\\
+\mathcal H_{\mathrm{SAV}} &= K+r_x^2+r_y^2+\frac12\int B^2\,dx,\\
+\mathcal H_{\mathrm{physical}} &= K+\frac12\int(E_x^2+E_y^2+B^2)\,dx.
+\end{aligned}
+```
+
+`KineticEnergy` and `IntegralF` contain ``K`` and ``M``.
+`TotalEnergy1` and `TotalEnergy2` contain the SAV and physical energies.
+`BNorm`, `ExNorm`, and `EyNorm` are squared spatial norms (without a factor
+of one half); `RxSquare`, `RySquare`, and `time` contain `rx^2`, `ry^2`, and `t`.
+No input arrays are modified.
+"""
 function compute_diag(f, Ex, Ey, B, rx, ry, mesh::Mesh1D2V, t)
 
     vx = mesh.vx

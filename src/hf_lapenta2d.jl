@@ -17,15 +17,19 @@ struct OperatorLapentaHF{T}
 
 end
 
-"""
-solve the subsystem 
+@doc raw"""
+    solve!(f::AbstractArray{T,3}, hf::OperatorLapentaHF, dt::Real) where {T}
+
+Advance free streaming, leaving all fields fixed:
 
 ```math
-df/dt + vx df/dx = 0 
-dEx/dt = 0
-dEy/dt = 0
-dB/dt  = 0
+\partial_t f+v_x\partial_x f=0,\qquad
+\partial_t E_x=\partial_t E_y=\partial_t B=0.
 ```
+
+For each velocity pair, apply the exact spatial Fourier multiplier
+``e^{-ikv_x\Delta t}`` on the periodic mesh.
+Update `f`, with dimensions `(nvx, nvy, nx)`, in place and return `nothing`.
 """
 function solve!(f::AbstractArray{T, 3}, hf::OperatorLapentaHF, dt::Real) where {T}
 

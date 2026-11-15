@@ -37,3 +37,19 @@ splitting is designed to preserve Gauss's law and a modified total energy.
 Finite grids, velocity truncation and interpolation can affect those invariants
 in a numerical run. The two-stream example uses a symmetric splitting, while
 the Vlasov–Maxwell examples use the first-order Lie splitting.
+
+## Splitting operators and diagnostics
+
+The docstrings below describe the subsystems, discretizations, and in-place
+updates used by the Julia implementation. For the one-space, two-velocity
+operators, `f` is indexed as `(vx, vy, x)`; fields and SAV profiles are spatial
+vectors, and `rx`, `ry` are scalar auxiliary variables.
+
+```@docs
+VlasovAmpereEnergyPreserving.solve!
+VlasovAmpereEnergyPreserving.HE!
+VlasovAmpereEnergyPreserving.hf!
+VlasovAmpereEnergyPreserving.HE_lapenta!
+VlasovAmpereEnergyPreserving.hf_lapenta!
+VlasovAmpereEnergyPreserving.compute_diag
+```
