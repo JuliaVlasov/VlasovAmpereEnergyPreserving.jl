@@ -37,28 +37,3 @@ splitting is designed to preserve Gauss's law and a modified total energy.
 Finite grids, velocity truncation and interpolation can affect those invariants
 in a numerical run. The two-stream example uses a symmetric splitting, while
 the Vlasov–Maxwell examples use the first-order Lie splitting.
-
-## Build the documentation
-
-From the repository root, create the documentation environment and build:
-
-```sh
-julia --project=docs -e 'using Pkg; Pkg.develop(path=pwd()); Pkg.instantiate()'
-julia --project=docs docs/make.jl
-```
-
-Open `docs/build/index.html` in a browser. Building the documentation does not
-run the simulations.
-
-## Documentation deployment
-
-The Documentation workflow builds pull requests without publishing them.
-Pushes to `main` publish the development documentation to `gh-pages`, while
-version tags such as `v0.1.0` publish versioned documentation and update
-`stable` to the latest release. Local builds do not deploy.
-
-In the repository's **Settings > Pages**, select **Deploy from a branch**,
-then **gh-pages** and **/ (root)**. The branch is created by the first successful
-deployment. The workflow uses the `DOCUMENTER_KEY` secret and its write-enabled
-Documenter deploy key; it can also push with `GITHUB_TOKEN`, but pushes made
-with that token do not trigger GitHub Pages builds.
