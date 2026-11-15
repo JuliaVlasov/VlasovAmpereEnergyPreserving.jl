@@ -6,14 +6,13 @@ VM1d-2v cases. It does not change the Julia package environment.
 
 ## Install and run
 
-Use Python 3.10 or newer in an isolated environment:
+Use Python 3.10 or newer with [uv](https://docs.astral.sh/uv/):
 
 ```sh
 cd jax_code
-python -m venv .venv
+uv venv .venv
 source .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
+uv pip install -r requirements.txt
 python VM-SAV-JAX.py --case two-stream
 python VM-SAV-JAX.py --case weibel
 python VM-SAV-JAX.py --case landau-weibel
@@ -21,10 +20,48 @@ python VM-SAV-JAX.py --case landau-weibel
 
 By default, the script uses the paper's grid sizes, time steps, final times,
 perturbations, and Weibel velocity bounds. Results are written to
-`results/<case>/diagnostics.csv` and `final_fields.csv`. The script uses JAX's
-CPU backend unless another backend is configured in the environment. Consult
-the [JAX installation guide](https://docs.jax.dev/en/latest/installation.html)
-for platform-specific GPU installation.
+`results/<case>/diagnostics.csv` and `final_fields.csv`. The requirements file
+installs JAX with its CPU backend. Check the detected devices with:
+
+```sh
+python -c "import jax; print(jax.devices())"
+```
+
+On Linux with an NVIDIA GPU, choose a CUDA wheel compatible with the GPU
+architecture. CUDA 12 supports NVIDIA SM 5.2 and newer (including compute
+capability 6.1); CUDA 13 requires SM 7.5 or newer. To replace the CPU/default
+installation with the CUDA 12 wheel:
+
+```sh
+uv pip install --python .venv/bin/python --reinstall 'jax[cuda12]'
+```
+
+For newer GPUs with CUDA 13-compatible drivers, use
+`uv pip install --python .venv/bin/python --reinstall 'jax[cuda13]'` instead.
+Then verify the detected backend and devices:
+
+```sh
+.venv/bin/python -c "import jax; print(jax.devices())"
+```
+
+Install a JAX wheel supported by your Python version, and ensure the NVIDIA
+driver meets the selected CUDA wheel's requirements; see the
+[JAX installation guide](https://docs.jax.dev/en/latest/installation.html).
+CUDA is not available on macOS; use the CPU build there.
+
+### Troubleshooting duplicate CUDA plugins
+
+If `jax.devices()` reports `PJRT_Api already exists for device type cuda` but
+also prints `[CudaDevice(id=0)]`, JAX can see a GPU, but the environment may
+contain duplicate CUDA plugins (for example, leftovers from switching between
+CUDA 13 and CUDA 12). Rather than reinstalling over that environment, create a
+separate clean CUDA 12 environment:
+
+```sh
+uv venv .venv-cuda12
+uv pip install --python .venv-cuda12/bin/python -r requirements.txt 'jax[cuda12]'
+.venv-cuda12/bin/python -c "import jax; print(jax.devices())"
+```
 
 All case parameters can be overridden on the command line. For example:
 
