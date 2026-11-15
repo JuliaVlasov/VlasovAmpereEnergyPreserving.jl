@@ -1,5 +1,5 @@
 # +
-function HE!(f, r, v, g, nv, kv, dv, nx, dx, dt)
+function HE!(f, r, v, g, nv, kv, dv, nx, dx, dt; interpolate = semilag_d2)
     J = vec(sum(v .* f; dims = 1)) .* dv
     rho = vec(sum(f; dims = 1)) .* dv
     Jnpdemi = J .+ 0.25 * dt * r * g .* rho
@@ -11,7 +11,7 @@ function HE!(f, r, v, g, nv, kv, dv, nx, dx, dt)
     u = zeros(nv)
     for i in eachindex(enew)
         u .= f[:, i]
-        u .= semilag_d2(u, enew[i], dt, dv)
+        u .= interpolate(u, enew[i], dt, dv)
         f[:, i] .= u
     end
 
@@ -55,7 +55,7 @@ dEx/dt=dEy/dt=0
 ```
 
 """
-function solve!(f, rx, ry, B, gx, gy, he::OperatorHE, dt)
+function solve!(f, rx, ry, B, gx, gy, he::OperatorHE, dt; interpolate = semilag_d2)
 
     nvx, nvy, nx = size(f)
 
@@ -97,13 +97,13 @@ function solve!(f, rx, ry, B, gx, gy, he::OperatorHE, dt)
     fvx = zeros(nvx)
     for j in axes(f, 2), i in eachindex(Exnew)
         fvx .= f[:, j, i]
-        f[:, j, i] .= semilag_d2(fvx, Exnew[i], dt, dvx)
+        f[:, j, i] .= interpolate(fvx, Exnew[i], dt, dvx)
     end
 
     fvy = zeros(nvy)
     for j in axes(f, 1), i in eachindex(Exnew)
         fvy .= f[j, :, i]
-        f[j, :, i] .= semilag_d2(fvy, Eynew[i], dt, dvy)
+        f[j, :, i] .= interpolate(fvy, Eynew[i], dt, dvy)
     end
 
     return rxnp1, rynp1
