@@ -49,3 +49,16 @@ julia --project=docs docs/make.jl
 
 Open `docs/build/index.html` in a browser. Building the documentation does not
 run the simulations.
+
+## Documentation deployment
+
+The Documentation workflow builds pull requests without publishing them.
+Pushes to `main` publish the development documentation to `gh-pages`, while
+version tags such as `v0.1.0` publish versioned documentation and update
+`stable` to the latest release. Local builds do not deploy.
+
+In the repository's **Settings > Pages**, select **Deploy from a branch**,
+then **gh-pages** and **/ (root)**. The branch is created by the first successful
+deployment. The workflow uses the `DOCUMENTER_KEY` secret and its write-enabled
+Documenter deploy key; it can also push with `GITHUB_TOKEN`, but pushes made
+with that token do not trigger GitHub Pages builds.

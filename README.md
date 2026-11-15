@@ -11,9 +11,12 @@ Vlasov-Maxwell models demonstrate the conservation properties and performance
 of the method.
 
 [![Build Status](https://github.com/JuliaVlasov/VlasovAmpereEnergyPreserving.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/JuliaVlasov/VlasovAmpereEnergyPreserving.jl/actions/workflows/CI.yml?query=branch%3Amain)
+[![Dev documentation](https://img.shields.io/badge/docs-dev-blue.svg)](https://juliavlasov.github.io/VlasovAmpereEnergyPreserving.jl/dev/)
+[![Stable documentation](https://img.shields.io/badge/docs-stable-blue.svg)](https://juliavlasov.github.io/VlasovAmpereEnergyPreserving.jl/stable/)
 
 For installation instructions, numerical method, and the paper's test cases,
-see the [documentation](https://juliavlasov.github.io/VlasovAmpereEnergyPreserving.jl).
+see the [development documentation](https://juliavlasov.github.io/VlasovAmpereEnergyPreserving.jl/dev/).
+Stable documentation becomes available after the first version-tagged release.
 
 ## Citation
 
