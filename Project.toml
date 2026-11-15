@@ -13,7 +13,7 @@ LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 DataFrames = "1.7.0"
 DispersionRelations = "1.0.0"
 FFTW = "1.8.1"
-LinearAlgebra = "1.11.0"
+LinearAlgebra = "<0.0.1, 1.6, 1.11.0"
 julia = "1.6.7"
 
 [extras]
