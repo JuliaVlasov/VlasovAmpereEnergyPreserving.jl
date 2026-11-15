@@ -1,4 +1,20 @@
 # +
+@doc raw"""
+    HE!(f, r, v, g, nv, kv, dv, nx, dx, dt; interpolate=semilag_d2)
+
+Advance the one-velocity electric SAV subsystem with fixed profile `g`:
+
+```math
+\partial_t f+rg\,\partial_vf=0,\qquad
+\dot r=-\frac12\int gJ\,dx,\qquad J=\int vf\,dv.
+```
+
+Approximate velocity and spatial integrals by uniform-grid sums. Use the
+midpoint acceleration ``\overline E=\tfrac12(r^{n+1}+r^n)g`` to translate
+each column of `f` with `interpolate(u, speed, dt, dv)`.
+`f` has dimensions `(nv, nx)` and is updated in place. Return the new
+auxiliary scalar; `g` is unchanged.
+"""
 function HE!(f, r, v, g, nv, kv, dv, nx, dx, dt; interpolate = semilag_d2)
     J = vec(sum(v .* f; dims = 1)) .* dv
     rho = vec(sum(f; dims = 1)) .* dv
@@ -43,17 +59,33 @@ struct OperatorHE{T}
 end
 
 
-"""
-solve the subsystem 
+@doc raw"""
+    solve!(f, rx, ry, B, gx, gy, he::OperatorHE, dt; interpolate=semilag_d2)
+
+Advance the electric SAV splitting subsystem with fixed profiles `gx`, `gy`:
 
 ```math
-df/dt + rxgx df/dvx + rygydf/dvy = 0
-dB/dt = -d(ry gy)/dx 
-drx/dt=-0.5*int (gx Jx) dx
-dry/dt=-0.5*int (gy (Jy+dB/dx)) dx
-dEx/dt=dEy/dt=0
+\begin{aligned}
+\partial_t f + r_xg_x\partial_{v_x}f + r_yg_y\partial_{v_y}f &= 0,\\
+\partial_t B &= -\partial_x(r_yg_y),\\
+\dot r_x &= -\frac12\int g_xJ_x\,dx,\\
+\dot r_y &= -\frac12\int g_y(J_y+\partial_x B)\,dx.
+\end{aligned}
 ```
 
+The scalar auxiliary variables (SAVs) are `rx`, `ry`. The velocity moments are
+``\rho=\int f\,dv_x\,dv_y`` and ``J_\alpha=\int v_\alpha f\,dv_x\,dv_y``
+for ``\alpha\in\{x,y\}``, approximated by uniform-grid sums.
+
+Use the midpoint accelerations
+``\overline E_\alpha=\tfrac12(r_\alpha^{n+1}+r_\alpha^n)g_\alpha``
+to translate `f` in each velocity direction. `interpolate(u, speed, dt, dv)`
+performs each one-dimensional semi-Lagrangian translation. Spatial
+derivatives are periodic Fourier derivatives.
+
+Update `f` and `B` in place and return `(rxnp1, rynp1)`. The supplied profiles
+are unchanged; the electric-field arrays belonging to other splitting
+subsystems are not advanced here.
 """
 function solve!(f, rx, ry, B, gx, gy, he::OperatorHE, dt; interpolate = semilag_d2)
 
@@ -108,69 +140,6 @@ function solve!(f, rx, ry, B, gx, gy, he::OperatorHE, dt; interpolate = semilag_
 
     return rxnp1, rynp1
 end
-
-#=
-function [ fn,rx,ry,B ] = HE(fn,vx,vy,Vx,Vy,rx,gx,ry,gy,B,Nvx,Nvy,kk,kv,dvx,dvy,Nx,dx,dt,d)
-
-%solve the subsystem 
-%df/dt + rxgx df/dvx + rygydf/dvy = 0
-%dB/dt = -d(ry gy)/dx 
-%drx/dt=-0.5*int (gx Jx) dx
-%dry/dt=-0.5*int (gy (Jy+dB/dx)) dx
-%dEx/dt=dEy/dt=0
-
-for i=1:Nx
-    Jx(i)=0.;Jy(i)=0.;rho(i)=0;
-    for j=1:Nvx
-        for k=1:Nvy
-            Jx(i)=Jx(i)+vx(j)*fn(j,k,i);
-            Jy(i)=Jy(i)+vy(k)*fn(j,k,i);
-            rho(i)=rho(i)+fn(j,k,i);
-        end
-    end
-end
-Jx=Jx*dvx*dvy;Jy=Jy*dvx*dvy;rho=rho*dvx*dvy;
-
-Jxnpdemi=Jx+0.25*dt*rx*gx.*rho;
-denom=1+(dt*dt/8)*sum(rho.*gx.^2)*dx;
-rxnp1=(rx-0.5*dt*sum(gx.*Jx)*dx-(dt*dt/8)*rx*sum(rho.*gx.^2)*dx)/denom;
-Exnew=0.5*(rxnp1+rx)*gx;
-
-Jynpdemi=Jy+0.25*dt*ry*gy.*rho;
-dxgy=real(ifft(sqrt(-1)*kk.*fft(gy)));
-dx2gy=real(ifft(-kk.*kk.*fft(gy)));
-dxB=real(ifft(sqrt(-1)*kk.*fft(B)));
-denom=1+(dt*dt/8)*sum(rho.*gy.^2)*dx+(dt*dt/8)*sum(dxgy.*dxgy)*dx;
-rynp1=(ry-0.5*dt*sum(Jy.*gy)*dx+0.5*dt*sum(B.*dxgy)*dx...
-    -(dt*dt/8)*ry*sum(rho.*gy.^2)*dx-(dt*dt/8)*ry*sum(dxgy.*dxgy)*dx)/denom;
-
-Eynew=0.5*(rynp1+ry)*gy;
-
-faraday=real(ifft(sqrt(-1)*kk.*fft(Eynew)));
-
-B=B-dt*faraday;
-
-for j=1:Nvy
-    for i=1:Nx
-        ft=fn(:,j,i)';
-        u1=semilag(ft,Nvx,Exnew(i),dt,dvx,d);
-        fn(:,j,i)=u1;
-    end
-end
-
-for j=1:Nvx
-    for i=1:Nx
-        ft=fn(j,:,i);
-        u1=semilag(ft,Nvy,Eynew(i),dt,dvy,d);
-        fn(j,:,i)=u1;
-    end
-end
-
-rx=rxnp1;
-ry=rynp1;
-
-end
-=#
 
 function HE(
         fn::Array{Float64, 3},

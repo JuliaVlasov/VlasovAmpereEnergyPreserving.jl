@@ -23,18 +23,26 @@ struct OperatorLapentaHB{T}
 end
 
 
-"""
-solve the subsystem 
+@doc raw"""
+    solve!(f, Ex, Ey, B, hb::OperatorLapentaHB, dt)
+
+Advance magnetic rotation and the source-free Maxwell subsystem:
 
 ```math
-    df/dt+B Jv.df/dv=0 
-    dEy/dt = -dB/dx
-    dB/dt  = -dEy/dx 
-    dEx/dt = 0
+\begin{aligned}
+\partial_t f+B\left(v_y\partial_{v_x}f-v_x\partial_{v_y}f\right) &= 0,\\
+\partial_t E_y &= -\partial_x B,\qquad
+\partial_t B=-\partial_x E_y,\\
+\partial_t E_x &= 0.
+\end{aligned}
 ```
 
-first equation is solved with semi-Lagrangian + exact splitting
+Integrate the field equations by implicit midpoint in spatial Fourier
+space. Rotate velocities with three Fourier shears, holding the magnetic
+field at ``\overline B=\tfrac12(B^{n+1}+B^n)`` during the rotation.
+Spatial and velocity directions use periodic Fourier transforms.
 
+Update `f`, `Ey`, and `B` in place; `Ex` is unchanged. Return `nothing`.
 """
 function solve!(f, Ex, Ey, B, hb::OperatorLapentaHB, dt)
 

@@ -35,15 +35,36 @@ struct OperatorHF{T}
 
 end
 
-"""
-solve the subsystem
+@doc raw"""
+    solve!(f, Ex, Ey, hf::OperatorHF, dt)
+
+Advance free streaming and its electric-current coupling:
 
 ```math
-df/dt + vx df/dx = 0
-dEx/dt = -Jx
-dEy/dt = -Jy
-dB/dt = drx/dt = dry/dt = 0
+\begin{aligned}
+\partial_t f+v_x\partial_xf &= 0,\\
+\partial_t E_x &= -J_x,\qquad \partial_t E_y=-J_y,\\
+\partial_t B = \dot r_x = \dot r_y &= 0.
+\end{aligned}
 ```
+
+Here ``J_\alpha=\int v_\alpha f\,dv_x\,dv_y``. Free streaming is exact
+for each resolved spatial Fourier mode:
+
+```math
+\widehat f^{\,n+1}(k,v_x,v_y)
+=e^{-ikv_x\Delta t}\widehat f^{\,n}(k,v_x,v_y).
+```
+
+For nonzero ``k``, the field increments are computed from
+``(\widehat\rho^{\,n+1}-\widehat\rho^{\,n})/(ik)`` and
+``(\widehat q^{\,n+1}-\widehat q^{\,n})/(ik)``, respectively, where
+``\rho=\int f\,dv_x\,dv_y`` and ``q=\int(v_y/v_x)f\,dv_x\,dv_y``.
+The velocity nodes must therefore have nonzero `vx`. Both electric-field
+zero modes are set to zero.
+
+Update `f`, `Ex`, and `Ey` in place. `f` has dimensions `(nvx, nvy, nx)`;
+fields are vectors of length `nx`.
 """
 function solve!(f, Ex, Ey, hf::OperatorHF, dt)
 
@@ -83,6 +104,25 @@ function solve!(f, Ex, Ey, hf::OperatorHF, dt)
 
 end
 
+@doc raw"""
+    hf!(f, E, dt, dv, v, kx)
+
+Advance one-velocity free streaming and its electric-current coupling:
+
+```math
+\partial_t f+v\partial_xf=0,\qquad
+\partial_t E=-J,\qquad J=\int vf\,dv.
+```
+
+Apply ``e^{-ikv\Delta t}`` in spatial Fourier space and update the nonzero
+field modes using
+``\widehat E^{\,n+1}=\widehat E^{\,n}
++(\widehat\rho^{\,n+1}-\widehat\rho^{\,n})/(ik)``,
+where ``\rho=\int f\,dv`` is approximated by a velocity sum times `dv`.
+Set the field zero mode to zero.
+
+Update `f`, of size `(length(v), length(kx))`, and `E` in place; return `E`.
+"""
 function hf!(
         f::Matrix{Float64},
         E::Vector{Float64},
@@ -109,47 +149,3 @@ function hf!(
 
     return E .= real(ifft(Ef))
 end
-
-
-#=
-function [ f, Ex, Ey ] = hf(dt,dvx,dvy,Nvx,Nvy,Nx,Vx,vy,kx,k,f,Ex,Ey)
-
-%solve the subsystem 
-%df/dt + vx df/dx = 0 
-%dEx/dt = -Jx 
-%dEy/dt = -Jy
-%dB/dt=drx/dt=dry/dt=0
-
-rhoh=squeeze(sum(sum(f))*dvx*dvy)';
-for j=1:Nvy
-    fs=squeeze(f(:,j,:)); %fn
-    fnsvy(:,j,:)=vy(j)*fs./Vx;
-    fs=real(ifft((exp(-sqrt(-1)*Vx'.*kx*dt)).*fft(fs')))'; %f(n+1)=exp(-ikvx dt)fn
-    f(:,j,:)=fs; %f(n+1)
-    fnp1vy(:,j,:)=vy(j)*fs./Vx;
-end
-
-rhohvy=squeeze(sum(sum(fnsvy))*dvx*dvy)';
-rhon=squeeze(sum(sum(f))*dvx*dvy)';
-rhonvy=squeeze(sum(sum(fnp1vy))*dvx*dvy)';
-
-%compute the current exactly in time by hand to get Ex and Ey
-
-k_mod=k;
-k_mod(1)=1;
-
-rhs=(1./(sqrt(-1)*k_mod)).*fft(rhon-rhoh);
-Ef=fft(Ex);
-
-Ef=Ef+rhs;
-Ef(1,1)=0;
-Ex=real(ifft(Ef));
-
-rhs=(1./(sqrt(-1)*k_mod)).*(fft(rhonvy-rhohvy));
-Ef=fft(Ey);
-Ef=Ef+rhs;
-Ef(1,1)=0;
-Ey=real(ifft(Ef));
-
-end
-=#

@@ -27,16 +27,32 @@ struct OperatorLapentaHE{T}
 
 end
 
-"""
-solve the subsystem 
+@doc raw"""
+    solve!(f, Ex, Ey, he::OperatorLapentaHE, dt)
 
-math```
-    df/dt + Ex df/dvx + Ey df/dvy = 0
-    dEx/dt=-Jx
-    dEy/dt=-Jy
-    dB/dt=0
+Advance the electric acceleration and current subsystem:
+
+```math
+\begin{aligned}
+\partial_t f+E_x\partial_{v_x}f+E_y\partial_{v_y}f &= 0,\\
+\partial_t E_x &= -J_x,\qquad \partial_t E_y=-J_y,\\
+\partial_t B &= 0.
+\end{aligned}
 ```
 
+The moments are ``\rho=\int f\,dv_x\,dv_y`` and
+``J_\alpha=\int v_\alpha f\,dv_x\,dv_y``. The field midpoint used for
+semi-Lagrangian translation in each velocity direction is
+
+```math
+\overline E_\alpha
+=\frac{E_\alpha^n-\frac{\Delta t}{2}J_\alpha^n}
+       {1+\frac{\Delta t^2}{4}\rho^n},
+\qquad E_\alpha^{n+1}=2\overline E_\alpha-E_\alpha^n.
+```
+
+`he` stores the moment and interpolation work arrays.
+Update `f`, `Ex`, and `Ey` in place and return `nothing`.
 """
 function solve!(f, Ex, Ey, he::OperatorLapentaHE, dt)
 
